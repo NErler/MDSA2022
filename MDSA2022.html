@@ -1,0 +1,2347 @@
+<!DOCTYPE html>
+<html lang="" xml:lang="">
+  <head>
+    <title>Dealing with Incomplete Covariates in Survival Models</title>
+    <meta charset="utf-8" />
+    <meta name="author" content="Nicole Erler" />
+    <script src="MDSA2022_files/header-attrs-2.11/header-attrs.js"></script>
+    <link href="MDSA2022_files/tile-view-0.2.4/tile-view.css" rel="stylesheet" />
+    <script src="MDSA2022_files/tile-view-0.2.4/tile-view.js"></script>
+    <script src="MDSA2022_files/xaringanExtra_fit-screen-0.2.4/fit-screen.js"></script>
+    <script src="MDSA2022_files/clipboard-2.0.6/clipboard.min.js"></script>
+    <link href="MDSA2022_files/shareon-1.4.1/shareon.min.css" rel="stylesheet" />
+    <script src="MDSA2022_files/shareon-1.4.1/shareon.min.js"></script>
+    <link href="MDSA2022_files/xaringanExtra-shareagain-0.2.4/shareagain.css" rel="stylesheet" />
+    <script src="MDSA2022_files/xaringanExtra-shareagain-0.2.4/shareagain.js"></script>
+    <meta name="github-repo" content="NErler/JointAI"/>
+    <meta name="twitter:title" content="Dealing with Incomlete Covariates in Survival Models: A Bayesian Approach"/>
+    <meta name="twitter:description" content="Presentation at the Missing Data and Survival Analysis Workshop in Angers, France in June 2022."/>
+    <meta name="twitter:url" content="https://nerler.github.io/MDSA2022/"/>
+    <meta name="twitter:image" content="https://nerler.github.io/MDSA2022/figures/share-card.png"/>
+    <meta name="twitter:image:alt" content="Dealing with Incomlete Covariates in Survival Models: A Bayesian Approach by Nicole Erler"/>
+    <meta name="twitter:card" content="summary_large_image"/>
+    <meta name="twitter:creator" content="@N_Erler"/>
+    <meta name="twitter:site" content="@N_Erler"/>
+    <meta property="og:title" content="Dealing with Incomlete Covariates in Survival Models: A Bayesian Approach"/>
+    <meta property="og:description" content="Presentation at the Missing Data and Survival Analysis Workshop in Angers, France in June 2022."/>
+    <meta property="og:url" content="https://nerler.github.io/MDSA2022/"/>
+    <meta property="og:image" content="https://nerler.github.io/MDSA2022/figures/share-card.png"/>
+    <meta property="og:image:alt" content="Dealing with Incomlete Covariates in Survival Models: A Bayesian Approach by Nicole Erler"/>
+    <meta property="og:type" content="website"/>
+    <meta property="og:locale" content="en_US"/>
+    <meta property="article:author" content="Nicole Erler"/>
+    <link rel="stylesheet" href="resources/EMC_dark.css" type="text/css" />
+    <link rel="stylesheet" href="style.css" type="text/css" />
+  </head>
+  <body>
+    <textarea id="source">
+class: left, top, title-slide
+
+<div class = "title">Dealing with Incomplete Covariates in Survival
+Models</div>
+<div class = "subtitle">A Bayesian Approach</div>
+<div class = "date">Workshop on Missing Data &amp; Survival
+Analysis<br>June 1st, 2022</div>
+<div class  = "author">Nicole Erler</div>
+<div class = "institute">Department of Biostatistics</div>
+<div class = "contact">
+<i class="fas fa-envelope"></i> <a href="mailto:n.erler@erasmusmc.nl"
+class="email">n.erler@erasmusmc.nl</a>&emsp;
+<a href= https://twitter.com/N_Erler><i class="fab fa-twitter"></i> N_Erler</a>&emsp;
+  <a href= https://github.com/NErler><i class="fab fa-github"></i> NErler</a>&emsp;
+  <a href= https://nerler.com><i class="fas fa-globe-americas"></i> https://nerler.com</a>
+</div>
+
+
+---
+
+count: false
+
+layout: true
+
+&lt;div class="my-footer"&gt;&lt;span&gt;
+&lt;a href="https://twitter.com/N_Erler"&gt;&lt;i class="fab fa-twitter"&gt;&lt;/i&gt; N_Erler&lt;/a&gt;
+&amp;emsp;&amp;emsp;&amp;emsp;&amp;emsp;
+&lt;a href="https://github.com/NErler"&gt;&lt;i class="fab fa-github"&gt;&lt;/i&gt; NErler&lt;/a&gt; &amp;emsp;&amp;emsp;&amp;emsp;&amp;emsp;
+&lt;a href = "https://nerler.com"&gt;&lt;i class="fas fa-globe-americas"&gt;&lt;/i&gt; nerler.com&lt;/a&gt;
+&lt;/span&gt;&lt;/div&gt; 
+
+
+
+
+
+
+---
+count: false
+
+
+## Outline
+
+
+* Motivating Example
+
+* Standard Approach to Imputation
+  * Associated Issues
+  
+* Fully Bayesian Approach
+  * Theory
+  * Implementation in the &lt;i class="fab fa-r-project"&gt;&lt;/i&gt; Package JointAI
+  * Extensions to More Complex Settings:&lt;br&gt;
+    Multivariate Joint Model for Longitudinal and Survival Data
+    
+* More Info on JointAI
+
+???
+
+To give you a bit of an idea where we are headed and what to expect, here
+a quick overview.
+
+I will start with a motivating example from my work with the department of
+Gastroenterology &amp; Hepatology at the Erasmus Medical Center and then take a 
+look at what method would usually be applied to handle the missing values in
+this type of setting, and what the issues are that we have with this approach
+and why we need an alternative.
+
+We'll then have a look at a fully Bayesian alternative.
+This approach is implemented in the R package JointAI and I'll show you 
+briefly how we could analyse the motivating example using JointAI, and
+how this approach and implementation works for even more complex settings, specifically a multivariate joint model for longitudinal and survival data.
+
+And if there is still time, we can have a more in depth look into what else
+you can do with JointAI.
+
+
+---
+
+## Example: PSC Recurrence &amp; Survival
+
+.footnote[
+[&lt;i class = "fas fa-file-alt"&gt;&lt;/i&gt; Visseren, Erler et al. (2021)](https://doi.org/10.1111/tri.13925)
+]
+
+
+1549 patients received a liver transplant (LTx) to "cure" PSC
+* 288 patients had a 2&lt;sup&gt;nd&lt;/sup&gt; LTx
+* 34 patients had a 3&lt;sup&gt;rd&lt;/sup&gt; LTx
+* 8 patients had a 4&lt;sup&gt;th&lt;/sup&gt; LTx
+  
+**Covariate of interest:** recurrence of PSC
+
+&amp;#8680; graft number &amp; recurrence are time-varying covariates
+
+???
+
+PSC, short for Primary Sclerosing Cholangitis, is a liver disease.
+The mechanisms behind this disease are not yet fully known there is
+currently no cure but doctors can only try and treat the patient's symptoms.
+
+For advanced or complicated cases, liver transplant is the only potentially
+curative treatment, but in 10 - 30% of patients the disease recurs in the
+new organ.
+
+We had data from the European Liver Transplant Registry of 1549 patients
+who did receive a liver transplant for PSC, and several of these patients
+actually received a second, third or even fourth transplant.
+
+The covariate of interest in our analysis was recurrence of PSC and in our
+analysis we wanted to include both recurrence and the graft number as
+time-varying covariates.
+
+- - -
+
+--
+
+**Additionally**: 8 (time-constant) covariates
+* 3 incomplete (4% - 11% NA)
+* 88% complete cases
+
+???
+
+In addition, we had 8 additional, time-constant covariates, of which 4 had
+missing values in up to 11% of the cases. 
+
+- - -
+
+--
+
+&lt;div style = "width: 35%; padding: 1.15em 2em; background-color: var(--nord0); position: absolute; bottom: 80px; right: 60px;"&gt;
+&lt;strong&gt;&amp;#8680; time-dependent PH model&lt;/strong&gt;
+&lt;/div&gt;
+
+???
+
+So the analysis that would typically be performed if there were no missing 
+values (or by ignoring cases with missing values) would be a time-dependent
+Cox model.
+
+---
+
+## Example: PSC Recurrence &amp; Survival
+
+&lt;img src="MDSA2022_files/figure-html/patsurv-1.png" width="100%" /&gt;
+
+???
+
+To make it a bit more clear how this time-varying structure looks like I
+tried to visualize it here.
+
+All patients receive a transplant because of their PCS and that is where
+the follow-up time starts.
+
+At some point, some of the patients have recurrence and we have a variable in the data that then changes from 0 to 1.
+
+And during follow-up patients may also receive additional transplants, either
+because of the PSC or due to other reasons, and we have a count variable that for every one starts with the value 1, and then increases to 2 and later to 3 whenever a patient has another transplant.
+
+We follow the patients until they die or until the end of follow-up which was the time when the data was extracted from the registry.
+
+---
+
+
+
+## How to Handle the Missing Values?
+
+Default: **Multiple Imputation**
+
+&lt;img src = "figures/MI.png", height = 450, style = "margin: auto; display: block;"&gt;
+
+???
+
+The most common way to handle missing values in covariates is multiple 
+imputation. 
+
+This refers to the general principle that we impute the missing values multiple
+times, fill them into the original, incomplete data to create multiple completed
+datasets that we can then analyse using standard methods.
+
+In the end, we need to pool the results from the separate analyses to create one
+overall result that takes into account both the uncertainty that we have about
+the parameter estimates from each of the analyses, measured by the standard
+errors, and the additional uncertainty due to the missing values, which is
+measured by the variation between the results from the different imputations.
+
+
+---
+
+## Imputation Step
+
+&lt;div style = "width: 75%; padding: 1.15em 2em; background-color: var(--nord0); margin: auto; display: block;"&gt;
+Sample from the &lt;strong&gt;predictive distribution&lt;/strong&gt; of the &lt;span style = "font-weight: bold; color: var(--nord15);"&gt;missing
+values&lt;/span&gt; given the &lt;strong&gt;observed values&lt;/strong&gt;.
+&lt;/div&gt;
+
+.footnote[
+assuming &lt;span style="font-weight: bold;"&gt;ignorable missingness&lt;/span&gt; in a covariate `\(x\)`
+
+[&lt;i class = "fas fa-book"&gt;&lt;/i&gt; Rubin (2004)](https://doi.org/10.1198/000313004X6355)
+]
+
+
+???
+
+The critical, or most interesting part of this is the imputation step. 
+
+The whole concept of multiple imputation was developed by Donald Rubin in the
+1970s and he realized that imputed values should be sampled from the predictive
+distribution of the missing values given the observed values.
+
+--
+
+&lt;br&gt;
+
+`\begin{align*}
+p(\color{var(--nord15)}{\mathbf x} \mid \text{everything else}) = p(\color{var(--nord15)}{\mathbf x} \;\mid\; &amp; \text{outcome},\\
+&amp; \text{other covariates},\\
+&amp;\text{parameters})
+\end{align*}`
+
+???
+
+That means we need to sample the imputed values for an incomplete covariate `\(x\)`
+from a distribution for `\(x\)` conditional on everything else, where "everything
+else" includes the outcome/response, other covariates, and parameters.
+
+
+---
+
+## Imputation Step
+
+
+.flex-grid[
+.col[
+
+&lt;table class="data-table"&gt;
+&lt;tr&gt;
+&lt;th&gt;&lt;/th&gt;
+&lt;th&gt;\(\mathbf y\)&lt;/th&gt;
+&lt;th&gt;\(\color{var(--nord15)}{\mathbf x_1}\)&lt;/th&gt;
+&lt;th&gt;\(\mathbf x_2\)&lt;/th&gt;
+&lt;th&gt;\(\mathbf x_3\)&lt;/th&gt;
+&lt;/tr&gt;
+&lt;tr&gt;&lt;td&gt;&lt;/td&gt;&lt;td colspan = "4"; style = "padding: 0px;"&gt;&lt;hr /&gt;&lt;/td&gt;&lt;tr&gt;
+&lt;td class="rownr"&gt;&lt;/td&gt;
+&lt;td&gt;&lt;i class = "fas fa-check"&lt;/i&gt;&lt;/td&gt;
+&lt;td&gt;&lt;i class = "fas fa-check"&lt;/i&gt;&lt;/td&gt;
+&lt;td&gt;&lt;i class = "fas fa-check"&lt;/i&gt;&lt;/td&gt;
+&lt;td&gt;&lt;i class = "fas fa-check"&lt;/i&gt;&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td class="rownr"&gt;\(i\)&lt;/td&gt;
+&lt;td&gt;&lt;i class = "fas fa-check"&lt;/i&gt;&lt;/td&gt;
+&lt;td style="color: var(--nord15);"&gt;&lt;i class = "fas fa-question"&gt;&lt;/i&gt;&lt;/td&gt;
+&lt;td&gt;&lt;i class = "fas fa-check"&lt;/i&gt;&lt;/td&gt;
+&lt;td&gt;&lt;i class = "fas fa-check"&lt;/i&gt;&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td class="rownr"&gt;&lt;/td&gt;
+&lt;td&gt;&lt;i class = "fas fa-check"&lt;/i&gt;&lt;/td&gt;
+&lt;td&gt;&lt;i class = "fas fa-check"&lt;/i&gt;&lt;/td&gt;
+&lt;td&gt;&lt;i class = "fas fa-check"&lt;/i&gt;&lt;/td&gt;
+&lt;td&gt;&lt;i class = "fas fa-check"&lt;/i&gt;&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td class="rownr"&gt;&lt;/td&gt;
+&lt;td&gt;&lt;i class = "fas fa-check"&lt;/i&gt;&lt;/td&gt;
+&lt;td&gt;&lt;i class = "fas fa-check"&lt;/i&gt;&lt;/td&gt;
+&lt;td&gt;&lt;i class = "fas fa-check"&lt;/i&gt;&lt;/td&gt;
+&lt;td&gt;&lt;i class = "fas fa-check"&lt;/i&gt;&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td class = "rownr"&gt;&lt;/td&gt;
+&lt;td&gt;\(\vdots\)&lt;/td&gt;
+&lt;td&gt;\(\vdots\)&lt;/td&gt;
+&lt;td&gt;\(\vdots\)&lt;/td&gt;
+&lt;td&gt;\(\vdots\)&lt;/td&gt;
+&lt;/tr&gt;
+&lt;/table&gt;
+
+
+* `\(\mathbf y\)`: **response** variable
+* `\(\color{var(--nord15)}{\mathbf x_1}\)`: **incomplete** covariate
+* `\(\mathbf x_2\)`, `\(\mathbf x_3\)`: **complete** covariates
+
+&lt;div style = "width: 450px;"&gt;&lt;/div&gt;
+
+]
+
+
+
+.col[
+
+**Sampling from the predictive distribution:&amp;emsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;**
+
+{{content}}
+
+]
+]
+
+???
+
+Let's have a look at this in a very simple setting where we have a response `\(y\)`,
+an incomplete covariate `\(x_1\)` and two completely observed covariates `\(x_2\)` and
+`\(x_3\)`.
+
+- - - - - 
+
+--
+
+
+Define a model for the incomplete variable
+`\(\color{var(--nord15)}{\mathbf x_1}\)`, e.g.
+`$$\color{var(--nord15)}{\mathbf x_1} = \beta_0 + \beta_1 \mathbf y +
+\beta_2 \mathbf x_2 + \beta_3 \mathbf x_3 + \varepsilon$$`
+to get estimates `\(\boldsymbol{\hat\beta}\)` (and `\(\hat\sigma\)`)
+{{content}}
+
+???
+
+We can think of sampling from the predictive distribution of `\(x_1\)` as
+fitting a model for `\(x_1\)` that has the other three variables in the linear predictor, to the cases where `\(x_1\)` is observed.
+
+From this model, we can get estimates for the regression coefficients `\(\beta\)`
+and the standard deviation of the residuals `\(\sigma\)`.
+
+- - -
+
+--
+
+&lt;br&gt;
+
+Sample
+`\(\color{var(--nord15)}{\hat{x}_{i1}}\)` from the predictive distribution
+`$$p(\color{var(--nord15)}{x_{i1}} \mid y_i, x_{i2}, x_{i3}, \boldsymbol{\hat\beta}, \hat\sigma)$$`
+
+???
+
+And using these parameter estimates we can then calculate the fitted or
+predicted value of `\(x_1\)` for those cases where `\(x_1\)` is missing.
+
+
+
+
+---
+
+## Multiple Imputation using FCS (MICE)
+
+.flex-grid[
+.col[
+
+&lt;div style = "text-align: center; margin-bottom: 25px;"&gt;
+&lt;strong&gt;Multivariate&lt;br&gt;Missingness&lt;/strong&gt;&lt;/div&gt;
+
+
+&lt;table class="data-table"&gt;
+&lt;tr&gt;
+&lt;th&gt;&lt;/th&gt;
+&lt;th&gt;\(\mathbf y\)&lt;/th&gt;
+&lt;th&gt;\(\color{var(--nord15)}{\mathbf x_1}\)&lt;/th&gt;
+&lt;th&gt;\(\color{var(--nord15)}{\mathbf x_2}\)&lt;/th&gt;
+&lt;th&gt;\(\color{var(--nord15)}{\mathbf x_3}\)&lt;/th&gt;
+&lt;th&gt;\(\ldots\)&lt;/th&gt;
+&lt;/tr&gt;
+&lt;tr&gt;&lt;td&gt;&lt;/td&gt;&lt;td colspan = "5"; style = "padding: 0px;"&gt;&lt;hr /&gt;&lt;/td&gt;&lt;tr&gt;
+&lt;td class="rownr"&gt;&lt;/td&gt;
+&lt;td&gt;&lt;i class = "fas fa-check"&lt;/i&gt;&lt;/td&gt;
+&lt;td&gt;&lt;i class = "fas fa-check"&lt;/i&gt;&lt;/td&gt;
+&lt;td&gt;&lt;i class = "fas fa-check"&lt;/i&gt;&lt;/td&gt;
+&lt;td style="color: var(--nord15);"&gt;&lt;i class = "fas fa-question"&gt;&lt;/i&gt;&lt;/td&gt;
+&lt;th&gt;\(\ldots\)&lt;/th&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td class="rownr"&gt;\(i\)&lt;/td&gt;
+&lt;td&gt;&lt;i class = "fas fa-check"&lt;/i&gt;&lt;/td&gt;
+&lt;td style="color: var(--nord15);"&gt;&lt;i class = "fas fa-question"&gt;&lt;/i&gt;&lt;/td&gt;
+&lt;td&gt;&lt;i class = "fas fa-check"&lt;/i&gt;&lt;/td&gt;
+&lt;td&gt;&lt;i class = "fas fa-check"&lt;/i&gt;&lt;/td&gt;
+&lt;th&gt;\(\ldots\)&lt;/th&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td class="rownr"&gt;&lt;/td&gt;
+&lt;td&gt;&lt;i class = "fas fa-check"&lt;/i&gt;&lt;/td&gt;
+&lt;td style="color: var(--nord15);"&gt;&lt;i class = "fas fa-question"&gt;&lt;/i&gt;&lt;/td&gt;
+&lt;td style="color: var(--nord15);"&gt;&lt;i class = "fas fa-question"&gt;&lt;/i&gt;&lt;/td&gt;
+&lt;td&gt;&lt;i class = "fas fa-check"&lt;/i&gt;&lt;/td&gt;
+&lt;th&gt;\(\ldots\)&lt;/th&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td class="rownr"&gt;&lt;/td&gt;
+&lt;td&gt;&lt;i class = "fas fa-check"&lt;/i&gt;&lt;/td&gt;
+&lt;td&gt;&lt;i class = "fas fa-check"&lt;/i&gt;&lt;/td&gt;
+&lt;td&gt;&lt;i class = "fas fa-check"&lt;/i&gt;&lt;/td&gt;
+&lt;td&gt;&lt;i class = "fas fa-check"&lt;/i&gt;&lt;/td&gt;
+&lt;th&gt;\(\ldots\)&lt;/th&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td class = "rownr"&gt;&lt;/td&gt;
+&lt;td&gt;\(\vdots\)&lt;/td&gt;
+&lt;td&gt;\(\vdots\)&lt;/td&gt;
+&lt;td&gt;\(\vdots\)&lt;/td&gt;
+&lt;td&gt;\(\vdots\)&lt;/td&gt;
+&lt;td&gt;&lt;/td&gt;
+&lt;/tr&gt;
+&lt;/table&gt;
+
+]
+
+
+.col[
+
+&lt;div style = "width: 700px;"&gt;
+&amp;#8680; \(p(\color{var(--nord15)}{\mathbf x_{mis}} \mid \text{everything else})\)
+is &lt;strong&gt;multivariate&lt;/strong&gt;.
+&lt;/div&gt;
+
+{{content}}
+
+]
+]
+
+???
+
+In practice, we usually do not have missing values in just a single variable,
+but in **multiple variables**, and the **predictive distribution** of the
+missing values conditional on everything else **is then multivariate**.
+
+- - -
+
+--
+
+&lt;br&gt;
+
+**Most common approach:**&lt;br&gt;
+&lt;span style = "font-weight: bold;"&gt;MICE&lt;/span&gt; 
+  &lt;span style = "color: var(--lgrey);"&gt;(multivariate imputation by chained equations)&lt;/span&gt;&lt;br&gt;
+  &lt;span style = "font-weight: bold;"&gt;FCS&lt;/span&gt; 
+  &lt;span style = "color: var(--lgrey);"&gt;(fully conditional specification), i.e.,&lt;/span&gt;
+  
+
+&lt;div&gt;
+\begin{alignat}{10}
+\color{var(--nord15)}{\mathbf x_1} &amp;= \beta_0 &amp;+&amp; \beta_1 \mathbf y &amp;+&amp;
+\beta_2 \color{var(--nord15)}{\mathbf x_2} &amp;+&amp; \beta_3 \color{var(--nord15)}{\mathbf x_3} &amp;+&amp; \ldots &amp;+&amp; \boldsymbol\varepsilon \\
+\color{var(--nord15)}{\mathbf x_2} &amp;= \alpha_0 &amp;+&amp; \alpha_1 \mathbf y &amp;+&amp;
+\alpha_2 \color{var(--nord15)}{\mathbf x_1} &amp;+&amp; \alpha_3 \color{var(--nord15)}{\mathbf x_3} &amp;+&amp; \ldots &amp;+&amp; \boldsymbol\varepsilon \\
+\color{var(--nord15)}{\mathbf x_3} &amp;= \theta_0 &amp;+&amp; \theta_1 \mathbf y &amp;+&amp;
+\theta_2 \color{var(--nord15)}{\mathbf x_1} &amp;+&amp; \theta_3 \color{var(--nord15)}{\mathbf x_2} &amp;+&amp; \ldots &amp;+&amp; \boldsymbol\varepsilon
+\end{alignat} 
+&lt;/div&gt;
+
+&lt;p class = "smallbreak"&gt;&amp;nbsp;&lt;/p&gt;
+
+* iterative
+* based on the idea of the Gibbs sampler
+
+
+
+???
+And the most common approach to imputation in this setting is MICE, short for
+**multivariate imputation by chained equations**, an approach that is also
+called **fully conditional specification**.
+
+The principle is a direct extension to what we've seen on the previous slide:
+We impute missing values using models that have all other data in their linear
+predictor.
+
+Because in these imputation models condition on unobserved values, we use an
+iterative algorithm that starts by randomly drawing initial values from the
+observed part of the data, and then cycles through the incomplete variables and
+impute one at a time.
+
+This algorithm is based on the idea of the Gibbs sampler.
+
+---
+
+## Time-to-Event Outcomes
+
+
+.pull-left[
+(Simple) **Proportional Hazards Model:**
+`$$h(t) = h_0(t) \exp\left(\color{var(--nord15)}{\mathbf X} \boldsymbol\beta\right)$$`
+
+&lt;br&gt;
+
+&lt;ul style = "color: var(--nord4);"&gt;
+&lt;li&gt;\(h(t)\): hazard function&lt;/li&gt;
+&lt;li&gt;\(h_0(t)\): baseline hazard&lt;/li&gt;
+&lt;li&gt;\(\color{var(--nord15)}{\mathbf X} = (\mathbf x_1, \mathbf x_2, \ldots)\): (in)complete covariates&lt;/li&gt;
+&lt;br&gt;&lt;br&gt;
+&lt;li&gt;\(\mathbf T\): observed event / censoring time&lt;/li&gt;
+&lt;li&gt;\(\boldsymbol\delta\): event indicator&lt;/li&gt;
+&lt;/ul&gt;
+]
+
+
+
+.pull-right[
+
+&lt;br&gt;
+
+&lt;table class="data-table"&gt;
+&lt;tr&gt;
+&lt;th&gt;&lt;/th&gt;
+&lt;th&gt;\(\mathbf T\)&lt;/th&gt;
+&lt;th&gt;\(\boldsymbol\delta\)&lt;/th&gt;
+&lt;th&gt;\(\color{var(--nord15)}{\mathbf x_1}\)&lt;/th&gt;
+&lt;th&gt;\(\color{var(--nord15)}{\mathbf x_2}\)&lt;/th&gt;
+&lt;th&gt;\(\ldots\)&lt;/th&gt;
+&lt;/tr&gt;
+&lt;tr&gt;&lt;td&gt;&lt;/td&gt;&lt;td colspan = "5"; style = "padding: 0px;"&gt;&lt;hr /&gt;&lt;/td&gt;&lt;tr&gt;
+&lt;td class="rownr"&gt;&lt;/td&gt;
+&lt;td&gt;&lt;i class = "fas fa-check"&lt;/i&gt;&lt;/td&gt;
+&lt;td&gt;&lt;i class = "fas fa-check"&lt;/i&gt;&lt;/td&gt;
+&lt;td&gt;&lt;i class = "fas fa-check"&lt;/i&gt;&lt;/td&gt;
+&lt;td style="color: var(--nord15);"&gt;&lt;i class = "fas fa-question"&gt;&lt;/i&gt;&lt;/td&gt;
+&lt;th&gt;\(\ldots\)&lt;/th&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td class="rownr"&gt;\(i\)&lt;/td&gt;
+&lt;td&gt;&lt;i class = "fas fa-check"&lt;/i&gt;&lt;/td&gt;
+&lt;td&gt;&lt;i class = "fas fa-check"&lt;/i&gt;&lt;/td&gt;
+&lt;td style="color: var(--nord15);"&gt;&lt;i class = "fas fa-question"&gt;&lt;/i&gt;&lt;/td&gt;
+&lt;td&gt;&lt;i class = "fas fa-check"&lt;/i&gt;&lt;/td&gt;
+&lt;th&gt;\(\ldots\)&lt;/th&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td class="rownr"&gt;&lt;/td&gt;
+&lt;td&gt;&lt;i class = "fas fa-check"&lt;/i&gt;&lt;/td&gt;
+&lt;td&gt;&lt;i class = "fas fa-check"&lt;/i&gt;&lt;/td&gt;
+&lt;td style="color: var(--nord15);"&gt;&lt;i class = "fas fa-question"&gt;&lt;/i&gt;&lt;/td&gt;
+&lt;td&gt;&lt;i class = "fas fa-check"&lt;/i&gt;&lt;/td&gt;
+&lt;th&gt;\(\ldots\)&lt;/th&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td class="rownr"&gt;&lt;/td&gt;
+&lt;td&gt;&lt;i class = "fas fa-check"&lt;/i&gt;&lt;/td&gt;
+&lt;td&gt;&lt;i class = "fas fa-check"&lt;/i&gt;&lt;/td&gt;
+&lt;td&gt;&lt;i class = "fas fa-check"&lt;/i&gt;&lt;/td&gt;
+&lt;td&gt;&lt;i class = "fas fa-check"&lt;/i&gt;&lt;/td&gt;
+&lt;th&gt;\(\ldots\)&lt;/th&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td class = "rownr"&gt;&lt;/td&gt;
+&lt;td&gt;\(\vdots\)&lt;/td&gt;
+&lt;td&gt;\(\vdots\)&lt;/td&gt;
+&lt;td&gt;\(\vdots\)&lt;/td&gt;
+&lt;td&gt;\(\vdots\)&lt;/td&gt;
+&lt;td&gt;&lt;/td&gt;
+&lt;/tr&gt;
+&lt;/table&gt;
+
+]
+
+???
+
+How does this look like when we have survival data like in our motivating 
+example.
+
+When we use the Cox model, we model the hazard function, and here I consider
+only the simple setting in which we do not have time-varying covariates.
+
+`\(\mathbf X\)` refers to the design matrix which contains completely observed and
+incomplete covariates.
+
+
+But the data that we use to fit such a model, does not contain the hazard as
+a response variable. Instead, we have the time of the event or censoring, 
+and the event indicator `\(\delta\)`.
+
+---
+
+
+## Time-to-Event Outcomes
+
+&lt;br&gt;
+
+Using FCS (naively), the **imputation model** for
+`\(\color{var(--nord15)}{\mathbf x_1}\)` would be
+`$$\color{var(--nord15)}{\mathbf x_1} = \theta_0 + \theta_1 \mathbf T + \theta_2  \boldsymbol\delta + \theta_3 \color{var(--nord15)}{\mathbf x_2} + \theta_4 \color{var(--nord15)}{\mathbf x_3} + \ldots,$$`
+i.e., assume a linear association between `\(\color{var(--nord15)}{\mathbf x_1}\)`
+and `\(\mathbf T\)` and `\(\boldsymbol\delta\)`.
+
+???
+
+When we now use the MICE algorithm on such survival data, usually the following happens:
+
+We specify (maybe without knowing it, because the software does it for us)
+imputation models for the incomplete covariates that look like this:
+
+The model for `\(x_1\)`, for example, would contain the event Time and event indicator
+and all other covariates in its linear predictor.
+
+At first glance, this seems OK, because we have included "everything else", 
+meaning the outcome and the other covariates.
+
+But this model assumes that there is a linear association between `\(x_1\)` and the
+event time and event indicator.
+
+- - -
+
+--
+
+&lt;br&gt;
+
+This is **inconsistent** with the log-likelihood of the **proportional hazards model**:
+
+`$$p(\mathbf T, \boldsymbol \delta \mid \color{var(--nord15)}{\mathbf X}, \boldsymbol\beta) =
+\boldsymbol\delta \left(\log h_0(T) + \color{var(--nord15)}{\mathbf X} \boldsymbol\beta\right) - 
+\int_0^T h_0(s)\exp\left(
+\color{var(--nord15)}{\mathbf X} \boldsymbol\beta\right)ds$$`
+
+???
+
+But the log-likelihood of the proportional hazards model makes a different
+assumption.
+
+Our analysis model implies that there is a non-linear association between
+covariates and the event time and indicator.
+
+The implication of this becomes more clear when we look at a simpler example
+that can be visualized more easily.
+
+---
+
+## A Simple Example
+
+
+
+
+.pull-left[
+**Implied Assumption:**&lt;br&gt;
+&lt;span&gt;Linear association&lt;/span&gt;
+between `\(\color{var(--nord15)}{\mathbf x_1}\)` and `\(\mathbf y\)`:
+
+`$$\color{var(--nord15)}{\mathbf x_1} = 
+\theta_0 + \bbox[#3B4252, 2pt]{\theta_1 \mathbf y} +
+\theta_2 \mathbf x_2 + \theta_3 \mathbf x_3 + \ldots$$`
+
+&lt;!-- &lt;img src="figures/linplot.png", width = "450", height = "300", style="position:absolute; bottom:45px;"&gt; --&gt;
+
+&lt;img src="MDSA2022_files/figure-html/unnamed-chunk-2-1.png" width="100%" /&gt;
+
+]
+
+???
+
+We just simplify the setting back to the situation where we have a standard
+univariate response variable `\(y\)` and we want to impute the incomplete covariate
+`\(x_1\)` and we assume that both are continuous and conditionally normally distributed.
+Then we could the linear regression model for `\(x_1\)` with `\(y\)` and other covariates
+as imputation model and this model of course assumes that there is a linear
+association between `\(x_1\)` and `\(y\)`.
+
+--
+
+.pull-right[
+&lt;br&gt;
+But what if 
+`$$\mathbf y = \beta_0 + 
+\bbox[#3B4252, 2pt]{\beta_1 \color{var(--nord15)}{\mathbf x_1} +
+\beta_2 \color{var(--nord15)}{\mathbf x_1}^2} +
+\beta_3 \mathbf x_2 + \ldots$$`
+
+&lt;img src="MDSA2022_files/figure-html/unnamed-chunk-3-1.png" width="100%" /&gt;
+
+&lt;!-- &lt;img src="figures/qdrplot.png", width = "450", height = "300", style="position:absolute; bottom:45px;"&gt; --&gt;
+
+]
+
+???
+
+But that is of course not always the case.
+
+When analysing the data, so when we are thinking about the model for `\(y\)` in which
+`\(x_1\)` is a covariate, we might assume that there is a non-linear association, 
+for example, that `\(x_1\)` has a quadratic effect on `\(y\)`.
+
+---
+
+
+## Non-linear Associations
+
+.pull-left[
+* &lt;span style="font-weight: bold; color:var(--nord4);"&gt;true association&lt;/span&gt;: non-linear
+* &lt;span style="font-weight: bold; color:var(--nord7);"&gt;imputation assumption&lt;/span&gt;: linear
+]
+
+.pull-right[
+]
+
+
+&lt;img src="MDSA2022_files/figure-html/unnamed-chunk-4-1.png" width="80%" /&gt;
+
+???
+
+
+Because we assumed a linear association in the imputation model, 
+all imputed values, here indicated by the greenish diamonds, will follow
+this linear association, and the observed data show the true non-linear 
+association.
+
+---
+count: false
+class: animated, fadeIn
+
+## Non-linear Associations
+
+.pull-left[
+* &lt;span style="font-weight: bold; color:var(--nord4);"&gt;true association&lt;/span&gt;: non-linear
+* &lt;span style="font-weight: bold; color:var(--nord7);"&gt;imputation assumption&lt;/span&gt;: linear
+]
+
+.pull-right[
+&lt;span style="font-size: 56pt; position: relative; right: 110px; bottom: 20px;"&gt;} &amp;#8680;&lt;/span&gt;
+&lt;span style = "color: var(--nord11); font-size: 1.2rem; font-weight: bold; position: relative; bottom: 30px; right: 100px;"&gt;
+bias!&lt;/span&gt;
+]
+
+
+&lt;img src="MDSA2022_files/figure-html/unnamed-chunk-5-1.png" width="80%" /&gt;
+
+
+???
+
+
+When we now analyse this imputed data we will of course get very different
+results than what we would have gotten had the data been complete, even
+if we use a model that allows for the correct non-linear association.
+
+The values that have been imputed under the wrong assumption distort the
+association and introduce bias.
+
+And the same that we have visualized here for a quadratic effect will also
+happen when we use imputation with the MICE algorithm naively with a
+time-to-event outcome.
+
+
+---
+
+## Example: PSC Recurrence &amp; Survival
+
+
+.pull-left[
+
+Recurrence of PSC and graft number are **time-varing variables**:
+&lt;ul class = "arrowlist"&gt;
+&lt;li&gt;the data is in "long" format&lt;/li&gt;
+&lt;li&gt;multiple rows refer to the same patient&lt;/li&gt;
+&lt;/ul&gt;
+
+{{content}}
+]
+
+
+
+.pull-right[
+
+&lt;div style = "width: 300px;"&gt;&amp;nbsp;&lt;/div&gt;
+
+
+
+&lt;table class="data-table"&gt;
+&lt;tr&gt;
+&lt;th&gt;id&lt;/th&gt;
+&lt;th&gt;\(\mathbf t_{start}\)&lt;/th&gt;
+&lt;th&gt;\(\mathbf t_{stop}\)&lt;/th&gt;
+&lt;th&gt;\(\boldsymbol\delta\)&lt;/th&gt;
+&lt;th&gt;graft&lt;/th&gt;
+&lt;th&gt;rPSC&lt;/th&gt;
+&lt;th&gt;\(\color{var(--nord15)}{\mathbf x_1}\)&lt;/th&gt;
+&lt;th&gt;\(\color{var(--nord15)}{\mathbf x_2}\)&lt;/th&gt;
+&lt;th&gt;\(\ldots\)&lt;/th&gt;
+&lt;/tr&gt;
+&lt;tr&gt;&lt;td colspan = "9"; style = "padding: 0px;"&gt;&lt;hr /&gt;&lt;/td&gt;&lt;tr&gt;
+&lt;td class="rownr"&gt;&lt;/td&gt;
+&lt;td&gt;&lt;i class = "fas fa-check"&lt;/i&gt;&lt;/td&gt;
+&lt;td&gt;&lt;i class = "fas fa-check"&lt;/i&gt;&lt;/td&gt;
+&lt;td&gt;&lt;i class = "fas fa-check"&lt;/i&gt;&lt;/td&gt;
+&lt;td&gt;&lt;i class = "fas fa-check"&lt;/i&gt;&lt;/td&gt;
+&lt;td&gt;&lt;i class = "fas fa-check"&lt;/i&gt;&lt;/td&gt;
+&lt;td&gt;&lt;i class = "fas fa-check"&lt;/i&gt;&lt;/td&gt;
+&lt;td&gt;&lt;i class = "fas fa-check"&lt;/i&gt;&lt;/td&gt;
+&lt;td&gt;\(\ldots\)&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr class="hlgt-row"&gt;
+&lt;td class="rownr"&gt;\(i\)&lt;/td&gt;
+&lt;td&gt;0&lt;/td&gt;
+&lt;td&gt;2.7&lt;/td&gt;
+&lt;td&gt;0&lt;/td&gt;
+&lt;td&gt;1&lt;/td&gt;
+&lt;td&gt;no&lt;/td&gt;
+&lt;td style="color: var(--nord15);"&gt;&lt;i class = "fas fa-question"&gt;&lt;/i&gt;&lt;/td&gt;
+&lt;td&gt;&lt;i class = "fas fa-check"&lt;/i&gt;&lt;/td&gt;
+&lt;td&gt;\(\ldots\)&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr class = "hlgt-row"&gt;
+&lt;td class="rownr"&gt;\(i\)&lt;/td&gt;
+&lt;td&gt;2.7&lt;/td&gt;
+&lt;td&gt;3.2&lt;/td&gt;
+&lt;td&gt;0&lt;/td&gt;
+&lt;td&gt;1&lt;/td&gt;
+&lt;td&gt;yes&lt;/td&gt;
+&lt;td style="color: var(--nord15);"&gt;&lt;i class = "fas fa-question"&gt;&lt;/i&gt;&lt;/td&gt;
+&lt;td&gt;&lt;i class = "fas fa-check"&lt;/i&gt;&lt;/td&gt;
+&lt;td&gt;\(\ldots\)&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr class = "hlgt-row"&gt;
+&lt;td class="rownr"&gt;\(i\)&lt;/td&gt;
+&lt;td&gt;3.2&lt;/td&gt;
+&lt;td&gt;6.5&lt;/td&gt;
+&lt;td&gt;1&lt;/td&gt;
+&lt;td&gt;2&lt;/td&gt;
+&lt;td&gt;yes&lt;/td&gt;
+&lt;td style="color: var(--nord15);"&gt;&lt;i class = "fas fa-question"&gt;&lt;/i&gt;&lt;/td&gt;
+&lt;td&gt;&lt;i class = "fas fa-check"&lt;/i&gt;&lt;/td&gt;
+&lt;td&gt;\(\ldots\)&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td class="rownr"&gt;&lt;/td&gt;
+&lt;td&gt;&lt;i class = "fas fa-check"&lt;/i&gt;&lt;/td&gt;
+&lt;td&gt;&lt;i class = "fas fa-check"&lt;/i&gt;&lt;/td&gt;
+&lt;td&gt;&lt;i class = "fas fa-check"&lt;/i&gt;&lt;/td&gt;
+&lt;td&gt;&lt;i class = "fas fa-check"&lt;/i&gt;&lt;/td&gt;
+&lt;td&gt;&lt;i class = "fas fa-check"&lt;/i&gt;&lt;/td&gt;
+&lt;td&gt;&lt;i class = "fas fa-check"&lt;/i&gt;&lt;/td&gt;
+&lt;td style="color: var(--nord15);"&gt;&lt;i class = "fas fa-question"&gt;&lt;/i&gt;&lt;/td&gt;
+&lt;td&gt;\(\ldots\)&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td class="rownr"&gt;&lt;/td&gt;
+&lt;td&gt;&lt;i class = "fas fa-check"&lt;/i&gt;&lt;/td&gt;
+&lt;td&gt;&lt;i class = "fas fa-check"&lt;/i&gt;&lt;/td&gt;
+&lt;td&gt;&lt;i class = "fas fa-check"&lt;/i&gt;&lt;/td&gt;
+&lt;td&gt;&lt;i class = "fas fa-check"&lt;/i&gt;&lt;/td&gt;
+&lt;td&gt;&lt;i class = "fas fa-check"&lt;/i&gt;&lt;/td&gt;
+&lt;td&gt;&lt;i class = "fas fa-check"&lt;/i&gt;&lt;/td&gt;
+&lt;td style="color: var(--nord15);"&gt;&lt;i class = "fas fa-question"&gt;&lt;/i&gt;&lt;/td&gt;
+&lt;td&gt;\(\ldots\)&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td class = "rownr"&gt;&lt;/td&gt;
+&lt;td&gt;\(\vdots\)&lt;/td&gt;
+&lt;td&gt;\(\vdots\)&lt;/td&gt;
+&lt;td&gt;\(\vdots\)&lt;/td&gt;
+&lt;td&gt;\(\vdots\)&lt;/td&gt;
+&lt;td&gt;\(\vdots\)&lt;/td&gt;
+&lt;td&gt;\(\vdots\)&lt;/td&gt;
+&lt;td&gt;\(\vdots\)&lt;/td&gt;
+&lt;td&gt;\(\ddots\)&lt;/td&gt;
+&lt;/tr&gt;
+&lt;/table&gt;
+
+]
+
+???
+
+And in the motivating example, there is an additional difficulty for imputation.
+
+We have **two time-varying variables**, recurrence of PSC and the graft number.
+
+This means that we will usually have our **data in long format**, so that there
+are multiple rows per patient, with the number of rows depending on whether the
+patient experienced recurrence and how many transplants he or she got.
+
+Depending on the software implementation, we then have two time variables, I
+called them `\(t_{start}\)` and `\(t_{stop}\)` here, that indicate the beginning and the
+end of the time interval in which the patient had the values of the covariates
+given in that row of the data.
+
+- - -
+
+--
+
+Imputed values of baseline covariates `\(\color{var(--nord15)}{\mathbf x_1}\)`,
+`\(\color{var(--nord15)}{\mathbf x_2}\)`, ... should be **constant across
+time/rows**.
+
+**Not** all rows are **independent**&lt;br&gt;
+&amp;#8680; violates of model assumption.
+
+???
+
+In our motivating example, the incomplete variables were all time-constant covariates, so the values of these variables should be constant cross the 
+different rows of the data belonging to the same patient.
+
+But if we would apply the MICE algorithm to a dataset in long format, the 
+imputed values would generally differ across rows. So we would obtain
+inconsistent imputed values and introduce bias.
+
+And what we also need to take into account is that rows belonging to the same
+patient are not independent. But we apply imputation models to this data
+which do assume that all observations are independent.
+
+Violation of this assumption will also result in bias.
+
+---
+
+
+## Non-linear Associations &amp; Multi-level
+
+In settings with **non-linear associations** and **multi-level data**
+the **correct predictive distribution**
+$$ p(\color{var(--nord15)}{\mathbf X_{mis}} \mid \text{everything else})$$
+may not have a closed form.
+
+&lt;br&gt;
+
+
+
+&lt;div style="width: 85%; padding: 1.15em 2em; background-color: var(--nord0); margin: auto; 
+display: block; text-align: center;"&gt;
+&lt;strong&gt;&lt;span style="font-size: 1.5rem;"&gt;&amp;#8680;&lt;/span&gt; 
+We cannot easily specify the correct imputation model directly.&lt;/strong&gt;
+&lt;/div&gt;
+
+???
+
+So, in summary, we need to sample imputed values from the predictive
+distribution of the missing values given everything else, but whenever we have a
+non-linear association between the response and incomplete covariates, as is the
+case for time-to-event outcomes, and when we have multi-level data, it is not
+straightforward to specify this distribution directly.
+
+When we use MICE, however, this is exactly what we are doing. By using standard
+regression models for imputation, we specify **a** distribution of the
+incomplete variables given everything else, but **not the correct
+distribution**.
+
+---
+
+## Getting the Correct Distribution
+
+???
+
+The interesting question now is: How do we get the correct predictive
+distribution?
+
+
+--
+
+.flex-grid[
+.col[
+* We need `\(\;p(\color{var(--nord15)}{\mathbf X_{mis}} \mid \mathbf y, \ldots)\)`
+* We know `\(\;p(\mathbf y \mid \color{var(--nord15)}{\mathbf X_{mis}}, \ldots)\)`
+]
+
+.col[
+&lt;div style = "color: var(--nord3);"&gt;
+&lt;ul&gt;
+&lt;li&gt;\(\mathbf x\): incomplete covariate(s)&lt;/li&gt;
+&lt;li&gt;\(\mathbf y\): outcome(s)&lt;/li&gt;
+&lt;li&gt;\(\ldots\): everything else &lt;/li&gt;
+&lt;/ul&gt;
+&lt;/div&gt;
+]
+]
+
+???
+
+
+Remember: what we need is the distribution of an incomplete variable `\(x\)` conditional on the response and everything else.
+
+But what we do know is the distribution of the response `\(y\)` conditional on the
+covariates and everything else, because that's our analysis model.
+
+And here Bayes comes to the rescue. 
+
+- - -
+--
+
+**Bayes Theorem:**
+
+`\begin{align}
+p(\color{var(--nord15)}{\mathbf X_{mis}} \mid \mathbf y, \ldots) &amp;= 
+\frac{p(\mathbf y \mid \color{var(--nord15)}{\mathbf X}, \ldots)\;
+p(\color{var(--nord15)}{\mathbf X_{mis}},\ldots)}{p\left(\mathbf y, \ldots\right)}\\
+&amp;\propto p(\mathbf y \mid \color{var(--nord15)}{\mathbf X_{mis}}, \ldots)\;
+p(\color{var(--nord15)}{\mathbf X_{mis}},\ldots)
+= \underset{\text{joint distribution}}{\underbrace{p(\mathbf y, \color{var(--nord15)}{\mathbf X_{mis}}, \ldots)}} 
+\end{align}`
+
+
+???
+
+Because Bayes theorem allows us to convert a conditional distribution into the
+reversed conditional.
+
+And using this theorem we derive that the distribution of interest, the
+distribution of the incomplete covariate conditional on everything else is
+proportional to the distribution of the **response conditional on the
+covariates**, and the **joined distribution of the covariates and everything
+else**.
+
+The product of these two terms describes the full joint distribution of
+everything, all the data, response, covariates, observed or missing, and
+parameters.
+
+---
+
+## Factorization of the Joint Distribution
+
+`$$p(\mathbf y, \color{var(--nord15)}{\mathbf X}, \boldsymbol\theta) =
+\underset{\substack{\text{analysis}\\\text{model}}}{\underbrace{p(\mathbf y \mid \color{var(--nord15)}{\mathbf X}, \boldsymbol\theta)}}\;
+\bbox[#2E3440, 5pt]{\underset{\substack{\text{covariate}\\\text{model(s)}}}{\underbrace{p(\color{var(--nord15)}{\mathbf X} \mid \boldsymbol\theta)}}}\;
+\underset{\text{priors}}{\underbrace{p(\boldsymbol\theta)}}$$`
+
+???
+
+And in general, we can write this joint distribution as the product of 
+
+* the analysis model, which is the distribution of the response given the covariates and parameters,
+* a model for the covariates conditional on parameters,
+* and the prior distribution for the parameters.
+
+The analysis model and the priors are the same as when we perform a Bayesian
+analysis in a complete data setting.
+
+But because we have missing values in the covariates, we need to specify a
+distribution for the covariates as well.
+
+--
+
+.flex-grid[
+.col[
+**Covariate Models**
+* multiple variables
+* mixed type (continuous, categorical)
+* multi-level
+]
+.col[
+&lt;br&gt;&lt;br&gt;
+&amp;#8680; **no closed-form** distribution
+]
+]
+
+???
+
+And this can be a bit tricky.
+
+Generally, we will have multiple incomplete covariates so we need a multivariate
+distribution, and the variables may be of mixed type, so, continuous and
+categorical and that means that there is not going to be a closed form for this
+multivariate distribution.
+
+On top of that, we could have covariates on different levels in a multi-level
+setting.
+
+--
+
+&lt;div style="width: 90%; padding: 1em; background-color: var(--nord0); margin: auto; display: block; text-align: center;"&gt;
+&amp;#8680; specification as a &lt;strong&gt;sequence of&lt;/strong&gt; (univariate) &lt;strong&gt;conditional distributions&lt;/strong&gt;
+&lt;/div&gt;
+
+
+???
+
+
+But we can use the same principle we used to divide the joint distribution into
+analysis model, covariate model and priors, to divide the joint distribution
+of the covariates into a bunch of univariate conditional distributions that are
+a lot easier to specify.
+---
+
+name: covariatemodels
+
+## Covariate Models
+
+Example: 
+`\(\qquad p(\color{var(--nord15)}{\mathbf X} \mid \boldsymbol\theta) = p(\color{var(--nord15)}{\mathbf x_1}, \mathbf x_2, \color{var(--nord15)}{\mathbf x_3(t)}, \mathbf x_4(t) \mid \boldsymbol\theta)\)`
+
+.flex-grid[
+.col[
+* `\(\color{var(--nord15)}{\mathbf x_1}\)`: time-constant, incomplete
+* `\(\mathbf x_2\)`: time-constant, complete
+]
+.col[
+* `\(\color{var(--nord15)}{\mathbf x_3(t)}\)`: time-varying, incomplete
+* `\(\mathbf x_4(t)\)`: time-varying, complete
+]
+]
+
+???
+
+As an example, let's assume that we have 4 covariates.
+`\(x_1\)` and `\(x_2\)` are time-constant and `\(x_3\)` and `\(x_4\)` are time-varying,
+and `\(x_1\)` and `\(x_3\)` have missing values while `\(x_2\)` and `\(x_4\)` are completely
+observed.
+
+--
+
+`\begin{align}
+ p(\color{var(--nord15)}{\mathbf x_1}, \mathbf x_2, \color{var(--nord15)}{\mathbf x_3(t)}, \mathbf x_4(t) \mid \boldsymbol\theta)
+=\, &amp; p(\color{var(--nord15)}{\mathbf x_3(t)} \mid \color{var(--nord15)}{\mathbf x_1}, \mathbf x_2, \mathbf x_4(t), \boldsymbol\theta) &amp; \color{var(--nord3)}{\small\text{e.g., GLMM}}\\
+&amp; p(\mathbf x_4(t) \mid \color{var(--nord15)}{\mathbf x_1}, \mathbf x_2, \boldsymbol\theta) &amp;
+\color{var(--nord3)}{\small\text{e.g., GLMM}}\\
+&amp; p(\color{var(--nord15)}{\mathbf x_1} \mid \mathbf x_2, \boldsymbol\theta) &amp; \color{var(--nord3)}{\small\text{e.g., GLM}}\\
+&amp; \color{var(--nord3)}{p(\mathbf x_2 \mid \boldsymbol\theta)} &amp; \color{var(--nord3)}{\small\text{(can be omitted)}}
+\end{align}`
+
+???
+
+I can then write this joint distribution of the 4 variables as the product
+of 
+* the distribution of `\(x_4\)` conditional on `\(x_1\)`, `\(x_2\)` and `\(x_3\)`,
+* the distribution of `\(x_3\)` conditional on `\(x_1\)` and `\(x_2\)`, and
+* the distribution of `\(x_1\)` conditional on `\(x_2\)`.
+
+Because they are univariate, I can easily find appropriate ways to specify
+each of them, for example using generalized linear mixed models for the 
+distributions of the time-varying variables `\(x_4\)` and `\(x_3\)` and a generalized 
+linear model for the distribution of `\(x_1\)`.
+
+I have chosen this particular sequence of models on purpose.
+When I start with the distributions of the time-varying covariates they do 
+not appear in the linear predictor of the subsequent models for the time-constant
+covariates.
+
+Had I done it the other way around and started with a model for `\(x_1\)`, I would
+have to condition on `\(x_3\)` and `\(x_4\)` and it would not be straightforward to 
+specify a model for that because this would mean to specify a model for a 
+time-constant, baseline, covariate, with a time-varying, longitudinal variable
+in the linear predictor, which doesn't really work.
+
+I could either start with `\(x_4\)` or `\(x_3\)`, both would work. My reasoning here is
+that mis-specification of models for incomplete variables probably has more
+impact on the results than mis-specification of models for complete variables
+and by including more covariates in the model for the incomplete `\(x_4\)` I make
+it more likely that the model fits the data well.
+
+Another question that you might have is why I did specify a model for the completely observed `\(x_4\)`, but not for the completely observed `\(x_2\)`. 
+
+This is required to model the dependence between the variables.
+The model for `\(x_4\)` is what describes the association between `\(x_4\)` and `\(x_1\)`,
+because `\(x_4\)` does not appear in the linear predictor of the model for `\(x_1\)`.
+If I would leave out this model, that would imply that `\(x_1\)` is independent of
+`\(x_4\)`.
+
+But because `\(x_2\)` comes last in the sequence, it appears in all the linear
+predictors of the other models, and the model for `\(x_2\)` does not specify any
+relevant information.
+
+
+&lt;!-- [Jump to Hep C example default values slide](#hepcdefaults) --&gt;
+
+- - -
+--
+
+&lt;div style="width: 55%; padding: 0.9em; background-color: var(--nord0); margin: auto; display: block; text-align: center;"&gt;
+covariate models \(\neq\) imputation models!
+&lt;/div&gt;
+
+???
+
+One important thing to realize here is that these models that we specify for the
+covariates are not actually the imputation models.
+
+They are not the models describing the distribution from which imputed values
+are being sampled.
+
+---
+
+## Imputation Models
+
+&lt;br&gt;
+
+`$$\bbox[#2E3440, 5pt]{\underset{\text{imputation model}}{\underbrace{p(\color{var(--nord15)}{\mathbf x_1} \mid \text{everything else})}}} \propto \underset{\substack{\text{joint}\\\text{distribution}}}{\underbrace{p(\mathbf y, \color{var(--nord15)}{\mathbf X}, \boldsymbol\theta)}} =
+\underset{\substack{\text{analysis}\\\text{model}}}{\underbrace{p(\mathbf y \mid \color{var(--nord15)}{\mathbf X}, \boldsymbol\theta)}}\;
+\underset{\substack{\text{covariate}\\\text{model(s)}}}{\underbrace{p(\color{var(--nord15)}{\mathbf X} \mid \boldsymbol\theta)}}\;
+\underset{\text{priors}}{\underbrace{p(\boldsymbol\theta)}}$$`
+
+???
+
+The imputation model for an incomplete covariate `\(x_1\)`, for example, can be
+derived from the joint distribution of everything. It is proportional to this
+joint distribution.
+
+And this joint distribution is specified as the product of the analysis model,
+the joint distribution of the covariates, which we specified in a sequential 
+way on the previous slide, and prior distributions.
+
+--
+
+&lt;br&gt;
+
+**Imputation Models** typically do not have a closed form.
+
+&amp;#8680; Estimation via **MCMC sampling**, with the help of 
+* Gibbs sampler
+* Metropolis-Hastings (or the like)
+
+???
+
+Because the joint distribution does not generally have a closed form, this is 
+also the case for the imputation models.
+
+So we cannot derive the posterior distribution of the missing values analytically.
+
+This is the same as for the posterior distribution of the parameters from a 
+Bayesian model, unless the model is extremely simple and we use conjugate priors.
+
+Therefore, in practice, we use MCMC sampling to obtain the posterior distribution.
+
+And because we usually have multivariate posterior distributions, because we
+have multiple unknowns (this includes the parameters as well as missing values)
+this often involves the Gibbs sampler, and because the full conditional
+distributions in the Gibbs sampler do not have closed forms, we will typically
+need to use something like the Metropolis-Hastings algorithm.
+
+So, here in the Bayesian approach we use Gibbs sampling, but also MICE is based
+on the Gibbs sampler. Why does one work and the other not?
+
+
+---
+
+## Fully Bayesian vs MICE
+
+.pull-left[
+**Fully Bayesian**
+
+&lt;img src = "figures/Gibbs.png", height = 350 style = "position: block; margins: auto;"&gt;
+]
+.pull-right[
+**MICE / FCS**
+
+&lt;img src = "figures/MICE.png", height = 350; style = "position: block; margins: auto;"&gt;
+]
+
+???
+
+The difference is that in the fully Bayesian approach we do actually specify the 
+joint distribution. We specify it using a sequence of conditional models.
+
+And the full conditional distributions that are then used to create the
+posterior sample are derived from this joint distribution.
+
+When we perform multiple imputation using MICE, we do it the other way around.
+We specify imputation models (or the software specifies those models for us) and
+even though these imputation models may even describe full conditional models,
+there is no guarantee that a joint distribution exists that has the
+distributions described by the imputation models as its full conditionals.
+
+For example, in the setting where an imputation model contradicts the analysis
+model or another imputation model, as was the case when we had an analysis model
+that assumes a non-linear association and an imputation model that assumes a
+linear association, there is no joint distribution that has these two models as
+full-conditionals.
+
+And when that is the case, when this joint distribution does not exist, MICE 
+will not give us valid imputations.
+
+---
+
+
+## Advantages of the Bayesian Approach
+`$$p(\mathbf y, \mathbf x, \boldsymbol\theta) =
+\bbox[#2E3440, 5pt]{\underset{\text{analysis model}}{\underbrace{p(\mathbf y \mid \mathbf x, \color{var(--nord14)}{\boldsymbol\theta_{y\mid x}})}}}\;
+p(\mathbf x \mid \boldsymbol\theta_x)\;
+p(\color{var(--nord14}{\boldsymbol\theta_{y\mid x}}, \boldsymbol\theta_x)\qquad
+\color{var(--nord3)}{\text{with } \boldsymbol\theta = (\boldsymbol\theta_{y\mid x}, \boldsymbol\theta_x)}$$`
+
+
+
+* specification of the joint distribution&lt;br&gt;
+  &amp;#8680; assures **compatibility** of imputation models
+
+???
+
+This is one of the advantages of the Bayesian approach. Because we specify the
+joint distribution, we can be sure that all imputation models are compatible
+with each other.
+
+- - -
+
+--
+
+* use of the analysis model in the specification of the joint distribution&lt;br&gt;
+  &amp;#8680; **parameters of interest** `\(\color{var(--nord14)}{\boldsymbol\theta_{y\mid x}}\)` are estimated directly&lt;br&gt;
+  &amp;#8680; **non-linear associations** are taken into account&lt;br&gt;
+  &amp;#8680; assures **congeniality**
+
+???
+
+And because the analysis model is part of the specification of this joint
+distribution, we can be sure that the imputation models are also compatible
+with the analysis model, even when the analysis model involves non-linear
+associations with incomplete covariates.
+
+In addition, the parameters of interest, so, the parameters of the analysis 
+model, are directly estimated. We do not have separate steps for imputation and
+analysis, but everything happens simultaneously in the same procedure.
+
+- - -
+
+--
+
+* response is not in any linear predictor&lt;br&gt;
+  &amp;#8680; no problem to use **complex outcomes**
+  
+  
+???
+
+Because we can specify the joint distribution so that one of the conditional
+models is the analysis model, we can usually make sure that the outcome does
+not need to appear in the linear predictor of models for covariates. This
+makes it possible to use this approach in setting where we have complex outcomes
+that could not be easily included into the linear predictor of some or all of 
+the covariates, for example when we have a repeatedly measured response and
+missing values in baseline covariates.
+
+---
+
+## In practice: &lt;i class="fab fa-r-project"&gt;&lt;/i&gt; Package JointAI
+
+.footnote[
+[&lt;i class = "fas fa-file-alt"&gt;&lt;/i&gt; Erler et al. (2021)](https://doi.org/10.18637/jss.v100.i20)
+&amp;nbsp;
+[&lt;i class = "fas fa-globe-americas"&gt;&lt;/i&gt; nerler.github.io/JointAI](https://nerler.github.io/JointAI)
+]
+
+&lt;div class = "container"&gt;
+&lt;div class = "box" style = "margin-left: 20px;"&gt;
+&lt;div class = "box-row"&gt;
+
+&lt;div class = "box-cell" style="width:180px;"&gt;
+&lt;strong&gt;Specification&lt;/strong&gt;&lt;br&gt;of the joint&lt;br&gt; distribution:
+&lt;/div&gt;
+
+&lt;div class = "box-cell" style = "background: var(--nord0);"&gt;
+&lt;div style = "padding-bottom: 10px;"&gt; &lt;strong&gt;User&lt;/strong&gt;&lt;/div&gt;
+&lt;div class = "box-cell" style = "background: var(--nord1); border: 2px solid var(--nord8); "&gt;analysis&lt;br&gt;model&lt;/div&gt;
+&lt;/div&gt;
+
+&amp;nbsp;
+
+&lt;div class = "box-cell" style = "background: var(--nord0);"&gt;
+&lt;div style = "padding-bottom: 10px;"&gt; &lt;strong&gt;JointAI&lt;/strong&gt;&lt;/div&gt;
+&lt;div class = "box-row"&gt;
+&lt;div class = "box-cell" style = "background: var(--nord1);"&gt;covariate&lt;br&gt;models&lt;/div&gt;&amp;nbsp;
+&lt;div class = "box-cell" style = "background: var(--nord1)"&gt;priors&lt;/div&gt;
+&lt;/div&gt;&lt;/div&gt;
+
+&lt;/div&gt;&lt;/div&gt;&lt;/div&gt;
+
+???
+
+We've now seen that this Bayesian approach is theoretically valid (at least as
+long as we have missing at random and our models fit the data well enough) and
+has certain advantages over using MICE, but how can we actually use it in
+practice?
+
+I've implemented this approach in the R package JointAI, short for Joint
+Analysis and Imputation.
+
+Using the R package, the user only has to specify the the analysis model of 
+interest, and the software specifies the models for the covariates involved in
+this analysis model and sets prior distributions.
+
+As when using the mice package in R, the types of models used for the covariates
+are based on how the data is coded, whether a variable is continuous or a 
+factor. Of course the default model types used may not always be appropriate 
+and there are options to adapt these default settings.
+
+- - -
+
+--
+
+&lt;br&gt;
+
+&lt;div class = "container"&gt;
+&lt;div class = "box" style = "margin-left: 20px;"&gt;
+&lt;div class = "box-row"&gt;
+
+&lt;div class = "box-cell" style="width:180px;"&gt;
+&lt;strong&gt;Estimation:&lt;/strong&gt;
+&lt;/div&gt;
+
+&lt;div class = "box-cell" style = "background: var(--nord0);"&gt;
+&lt;div style = "padding-bottom: 10px;"&gt; &lt;strong&gt;JointAI&lt;/strong&gt;&lt;/div&gt;
+&lt;div class = "box-cell" style = "background: var(--nord1);"&gt;pre-processing&lt;/div&gt;
+&lt;/div&gt;
+
+&amp;nbsp;
+
+&lt;div class = "box-cell" style = "background: var(--nord0);"&gt;
+&lt;div style = "padding-bottom: 10px;"&gt; &lt;strong&gt;rjags / JAGS&lt;/strong&gt;&lt;/div&gt;
+&lt;div class = "box-cell" style = "background: var(--nord1);"&gt;MCMC sampling&lt;/div&gt;
+&lt;/div&gt;
+
+&amp;nbsp;
+
+&lt;div class = "box-cell" style = "background: var(--nord0);"&gt;
+&lt;div style = "padding-bottom: 10px;"&gt; &lt;strong&gt;JointAI&lt;/strong&gt;&lt;/div&gt;
+&lt;div class = "box-cell" style = "background: var(--nord1);"&gt;post-processing&lt;/div&gt;
+&lt;/div&gt;
+
+&lt;/div&gt;&lt;/div&gt;&lt;/div&gt;
+
+???
+
+The estimation of the model is done with the help of JAGS, an external and
+freely available software that does Gibbs sampling.
+
+JointAI does some pre-processing, takes the data and the model formula, figures
+out which additional models need to be specified and creates all the information
+that needs to be provided to JAGS.
+
+The R package rjags is used as an interface between R and JAGS and the MCMC
+sampling is then performed in JAGS.
+
+JointAI then does some post-processing on the MCMC samples so that you will 
+get an output that resembles what you would get from fitting a model using
+the standard model types for complete data in R, like `lm()` or `glm()` or the
+`coxph()` from the survival package.
+
+---
+
+## Example: PSC Recurrence &amp; Survival
+
+(Time-Dependent) Proportional Hazards Model in **JointAI**:
+* B-splines to model the baseline hazard
+* Random effect notation to "group" rows of the same patient
+
+???
+
+As simple demonstration, we can have a look at how we would need to specify
+the time-dependent Cox model that we wanted to use for the analysis of our
+motivating example of recurrence of PSC.
+
+One difference between the model used in JointAI and the model fitted using
+`coxph()` from the survival package is that in the Bayesian approach we cannot
+leave the baseline hazard unspecified. Instead, we model it flexibly using
+B-splines.
+
+When we have time-varying covariates and need to take into account that some
+rows in the data belong to the same subject, we can do this in **JointAI** by
+specifying a random intercept for the subject level.
+
+- - -
+
+--
+
+
+```r
+library("JointAI")
+
+fmla_patsurv &lt;- Surv(pat_time, pat_event) ~  recip_sex + graft_type + ... +
+  graftnr * recurrence + `(1 | ID_pat)`
+
+patsurv &lt;- coxph_imp(fmla_patsurv, data = PSC_data, `timevar = "futime"`,
+                     `n.iter = 1000`, `n.chains = 8`)
+```
+
+* `timevar`: links covariate measurement time to event time
+* `n.iter`: number of iterations for the MCMC sampling
+* `n.chains`: number of MCMC chains
+
+???
+
+The model specification in **JointAI** follows the specification of the 
+standard modelling functions in R as closely as possible.
+
+To make the syntax a bit more clear, I have split the specification and first
+specify the model formula and then the model.
+
+In the model formula we use a survival object to specify the outcome, and use
+here the event or censoring time and the event indicator, so not a start and 
+stop time for the interval as we would have to use in the survival package.
+This is because it was more convenient this way to implement it.
+
+Baseline and time-varying covariates are specified in the same way. I've here
+also included an interaction between the two time-varying covariates
+graft number and recurrence of PSC.
+To indicate the ID variable that identifies rows belonging to the same patient
+we use a term like a random intercept specification in the **lme4** package.
+
+To run the model we use the function `coxph_imp()`. Besides the model formula,
+we also need to specify the number of iterations of the MCMC sampler.
+In addition, I also specified the number of MCMC chains that should be run to 8.
+The default would be 3 chains.
+
+Because we have time-dependent covariates we also have to specify the argument
+`timevar` which is set to the name of the variable in the data that contains
+the measurement times of the longitudinal variables.
+
+
+---
+
+## Example: PSC Recurrence &amp; Survival
+
+* **proportional hazards model**:&lt;br&gt;
+  `pat_time, pat_event` | `graftnr`, `recurrence`, `ischemic_hrs`, ..., `year`
+
+
+???
+
+When we fit this model, **JointAI** specifies the following sequence of 
+models:
+
+* The proportional hazards model using the event time and event indicator,
+conditional on all the covariates we have specified.
+
+- - -
+--
+
+&lt;p class = "smallbreak"&gt;&amp;nbsp;&lt;/p&gt;
+
+* **cumulative logit mixed model**:&lt;br&gt;
+  `graftnr` | `recurrence`, `futime`, `ischemic_hrs`, `donor_age`, ..., `recip_age`, `year`
+* **logistic mixed model**:&lt;br&gt;
+  `recurrence` | `futime`, `ischemic_hrs`, `donor_age`, ..., `recip_age`, `year`
+
+
+???
+
+Then, two mixed models for the two time-varying covariates `graft number` and
+`recurrence`. There are no missing values in these variables, but we need these
+two models to model an association between them and the incomplete covariates.
+
+Because the graft number was coded as an ordered factor, a cumulative logit
+mixed model was chosen and, and for the binary recurrence status a logistic
+mixed model is the default.
+
+And as you can see, both models contain all baseline covariates, and in addition
+the measurement time, and recurrence is also included in the model for graft
+number.
+
+- - -
+--
+
+&lt;p class = "smallbreak"&gt;&amp;nbsp;&lt;/p&gt;
+
+* **linear model**: &lt;br&gt;
+ `ischemic_hrs` | `donor_age`, `graft_type`, `recip_sex`, `recip_age`, `year`
+* **linear model**:&lt;br&gt;
+  `donor_age` | `graft_type`, `recip_sex`, `recip_age`, `year`
+* **multinomial logit model**:&lt;br&gt;
+  `graft_type` | `recip_sex`, `recip_age`, `year`
+
+
+???
+
+And **JointAI** also specifies the models for the incomplete covariates.
+We have the ischemic time, the time the transplanted organ was outside the
+body, measured in hours and the age of the donor for which we use linear
+regression models, 
+and the graft type, so if it was a living or deceased donor and if it was a
+full liver or just part of it, which was coded as an unordered factor and
+**JointAI** therefore automatically chose a multinomial logit model.
+
+The covariates are again all the remaining variables, for which no model has
+been specified yet in this sequence of conditional models.
+
+The last three covariates, recipient sex, recipient age and year of the first
+transplant did not have any missing values and so we do not need to specify
+models for them.
+
+One thing I should add here is that the covariates that refer to the donor
+should actually have been time-varying. Unfortunately, we only had them
+available for the first graft, and so they had to be included as time-constant.
+
+There is just not enough information available in the data to use them as 
+time-varying and consider the information for a second and third graft to be
+missing.
+
+---
+
+## Example: PSC Recurrence &amp; Survival
+
+
+```r
+summary(patsurv)
+```
+
+.scroll450[
+
+```
+## 
+## Bayesian proportional hazards model fitted with JointAI
+## 
+## Call:
+## coxph_imp(formula = Surv(patsurv, last_status) ~ RecSex + DonorGraftCat + 
+##     ns(RecAgeLTx1, df = 2) + ischemic_hrs + TH1_Donor_age + ns(year, 
+##     df = 2) + graftnr * recurrence + (1 | IDPAT), data = patsurv_subDF, 
+##     n.chains = n.chains, n.iter = n.iter, seed = seed, timevar = "futime")
+## 
+## 
+## Number of events: 356 
+## 
+## Posterior summary:
+##                             Mean     SD     2.5%   97.5% tail-prob. GR-crit MCE/SD
+## RecSexF                 -0.20115 0.1187 -0.42839  0.0269    0.09000    1.00 0.0186
+## DonorGraftCatL           0.36646 0.3064 -0.27545  0.9332    0.23375    1.00 0.0190
+## DonorGraftCatDBD_P      -0.53683 0.3783 -1.34258  0.1554    0.14300    1.00 0.0187
+## DonorGraftCatDCD        -0.19627 0.8227 -2.06765  1.1567    0.89700    1.00 0.0170
+## ns(RecAgeLTx1, df = 2)1  0.43062 0.4092 -0.37078  1.2488    0.29200    1.00 0.0152
+## ns(RecAgeLTx1, df = 2)2  1.69408 0.2650  1.16088  2.2088    0.00000    1.00 0.0177
+## ischemic_hrs             0.02557 0.0175 -0.00965  0.0596    0.14100    1.00 0.0201
+## TH1_Donor_age            0.00976 0.0037  0.00253  0.0170    0.00575    1.00 0.0197
+## ns(year, df = 2)1       -2.31520 0.6036 -3.51769 -1.1646    0.00000    1.00 0.0221
+## ns(year, df = 2)2       -0.30971 0.2976 -0.88715  0.2671    0.29700    1.00 0.0200
+## graftnr2                 0.87075 0.1563  0.55022  1.1618    0.00000    1.00 0.0223
+## graftnr3+                1.00351 0.4884 -0.07082  1.8601    0.06325    1.01 0.0373
+## recurrence1              0.83676 0.1962  0.43004  1.2035    0.00000    1.01 0.0271
+## graftnr2:recurrence1    -0.93363 0.3539 -1.62133 -0.2441    0.00725    1.00 0.0255
+## graftnr3+:recurrence1    0.92089 0.6152 -0.24485  2.1896    0.11825    1.01 0.0375
+## 
+## Posterior summary of other parameters:
+##                              Mean    SD  2.5% 97.5% tail-prob. GR-crit MCE/SD
+## beta_Bh0_Srv_ptsrv_lst_s[1] -3.08 0.186 -3.45 -2.73      0.000    1.00 0.0250
+## beta_Bh0_Srv_ptsrv_lst_s[2] -3.89 0.254 -4.40 -3.41      0.000    1.00 0.0372
+## beta_Bh0_Srv_ptsrv_lst_s[3] -4.48 0.292 -5.04 -3.90      0.000    1.01 0.0450
+## beta_Bh0_Srv_ptsrv_lst_s[4] -3.89 0.568 -5.00 -2.80      0.000    1.01 0.0536
+## beta_Bh0_Srv_ptsrv_lst_s[5] -4.44 1.076 -6.42 -2.25      0.001    1.01 0.0510
+## beta_Bh0_Srv_ptsrv_lst_s[6] -4.34 2.037 -8.89 -1.08      0.003    1.01 0.0380
+## 
+## 
+## MCMC settings:
+## Iterations = 101:1100
+## Sample size per chain = 1000 
+## Thinning interval = 1 
+## Number of chains = 8 
+## 
+## Number of observations: 3411 
+## Number of groups:
+##  - IDPAT: 1428
+```
+]
+
+???
+
+After having fitted the model, we of course want to see the results, and as 
+with all the standard regression functions in R, you can obtain them using the
+function `summary()`.
+
+Here just a quick overview of how this model summary looks like for a **JointAI**
+model.
+
+Don't pay too close attention to the model formula and the names of the
+variables. this is output from the actual model I fitted in the PSC project, but
+I changed the variable names and model structure a bit for the earlier examples
+to make it easier to read.
+
+The most interesting part is the posterior summary, where we get the posterior
+mean and standard deviation. Instead of confidence intervals we use the 2.5% and
+97.5% quantiles of the posterior sample which give us the credible interval.
+
+The output also shows us the tail probability, which is sometimes called the Bayesian p-value, the Gelman Rubin criterion for convergence (aka R-hat or potential scale reduction factor) and the ratio of the Monte Carlo error to the posterior standard
+deviation, as a criterion of sampling precision.
+
+The output is split in the main parameters and, for some model types, other
+parameters. That would be variance parameters, or, here in the proportional 
+hazards model the coefficients from the spline used to model the baseline
+hazard.
+
+At the end, we get some information on the MCMC sampling: the number of iterations,
+thinning and number of chains.
+
+And the number of observations. When we have multi-level data, this is given for
+each level of the hierarchy.
+
+---
+
+## Example: PSC Recurrence &amp; Graft Survival
+
+&lt;img src="MDSA2022_files/figure-html/graftsurv-1.png" width="100%" /&gt;
+
+
+---
+
+## Example: PSC Recurrence &amp; Graft Survival
+
+**Here:** analysis on the graft level
+* grafts are nested in patients &amp;#8680; random intercept for `ID_pat`
+* repeated measurements within grafts &amp;#8680; random intercept for `ID_graft`
+
+
+```r
+fmla_graftsurv &lt;- Surv(graft_time, graft_event) ~ recip_sex + graft_type + 
+  ... + graftnr * recurrence + `(1 | ID_graft) + (1 | ID_pat)`
+
+graftsurv &lt;- coxph_imp(fmla_graftsurv, data = PSC_data, timevar = "futime",
+                       n.iter = 1000, n.chains = 6)
+```
+
+
+* Can be seen as gap time approach for **recurrent events** in patients.
+* Possible to add **more hierarchical levels**:&lt;br&gt;
+  grafts &amp;gt; patients &amp;gt; hospitals &amp;gt; countries
+
+???
+
+We can easily add multiple levels of hierarchy by specifying additional 
+random effects terms.
+
+Because the outcome is on the graft level, but covariates are on the patient
+level, this will now actually add a random intercept to the linear predictor
+of the survival model.
+
+Another criticism of this model is that the time-dependent Cox model assumes
+the covariates to be exogenous, but in many medical applications that is not
+a realistic assumption. The values of the time-dependent covariates do usually
+depend on the survival status of the patient.
+
+And so in our applications, it is often more appropriate to fit a Joint Model
+for longitudinal and survival data instead.
+
+
+---
+
+
+## Extension to More Complex Analyses
+
+&lt;br&gt;
+
+
+&lt;div class = "container"&gt;
+&lt;div class = "box"&gt;
+&lt;div class = "box-row"&gt;
+&lt;div class = "box-cell" style = "background: var(--nord0);"&gt;joint&lt;br&gt;distribution&lt;/div&gt;&amp;nbsp;
+&lt;div class = "box-cell"&gt;\(=\)&lt;/div&gt; 
+&lt;div class = "box-cell" style = "background: var(--nord0);"&gt;analysis&lt;br&gt;model&lt;/div&gt;&amp;nbsp;
+&lt;div class = "box-cell" style = "background: var(--nord0);"&gt;covariate&lt;br&gt;models&lt;/div&gt;&amp;nbsp;
+&lt;div class = "box-cell" style = "background: var(--nord0)"&gt;priors&lt;/div&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+
+
+???
+
+And this brings me to my next point: to show you that this Bayesian approach
+to handle incomplete covariates is very suitable for quite complex models.
+
+
+And this means that we can always divide the joint distribution into the 
+analysis model, a model for the covariates, and prior distributions.
+
+And this also works for fairly complex models.
+
+--
+
+&lt;br&gt;
+
+**(Multivariate) Joint Model for Longitudinal and Survival Data:**
+
+`$$p(\mathbf T, \boldsymbol\delta, \mathbf y, \color{var(--nord15)}{\mathbf x}, \mathbf b, \boldsymbol\theta) =
+\underset{\text{analysis model}}{\underbrace{
+\underset{\substack{\text{survival}\\\text{model}}}{\underbrace{
+p(\mathbf T, \boldsymbol\delta \mid \mathbf b, \color{var(--nord15)}{\mathbf x}, \boldsymbol \theta)}}\;\;
+\underset{\substack{\text{(multivariate)}\\\text{longitudinal}\\\text{model}}}{\underbrace{
+p(\mathbf y \mid \mathbf b, \color{var(--nord15)}{\mathbf x}, \boldsymbol\theta)\;
+p(\mathbf b\mid \boldsymbol \theta)}}
+}}\;\;
+\underset{\substack{\text{covariate}\\\text{models}}}{\underbrace{
+p(\color{var(--nord15)}{\mathbf x} \mid \boldsymbol\theta)}}\;\;
+\underset{\text{priors}}{\underbrace{p(\boldsymbol\theta)}}$$`
+
+???
+
+For example, for our multivariate joint model for longitudinal and survival
+data. There, the model for the response consists of multiple parts,
+the time-to-event model, and the multivariate mixed model for the longitudinal
+biomarkers.
+
+
+---
+
+## Example: Multivariate Joint Model
+
+Combine multiple models in a list of `formula` objects:
+
+```r
+fmla &lt;- list(
+  Surv(etime, event) ~ age + sex + ... + `logBili + logAST + Plt`,
+  
+  Plt ~ age + sex + logAST + logBili + ns(time, df = 3) + 
+    (ns(time, df = 3) | StudyID),
+  
+  logBili ~ age + sex + logAST + time + (time | StudyID),
+  
+  logAST ~ age + sex + ns(time, df = 5) + (ns(time, df = 5) | StudyID)
+)
+```
+
+--
+
+
+```r
+mod &lt;- JM_imp(fmla, data = HCVdat, `timevar = "time"`, `rd_vcov = "full"`,
+              n.iter = 10000, n.chains = 8)
+```
+
+`rd_vcov`: type of random effects variance-covariance matrix.
+
+---
+
+
+## JointAI: Model Types
+
+.flex-grid[
+.col[
+**Univariate Models:**
+
+* `lm_imp()`
+* `glm_imp()`
+* `clm_imp()`
+* `mlogit_imp()`
+* `betareg_imp()`
+* `lognorm_imp()`
+]
+
+.col[
+**Mixed Models**
+
+* `lme_imp()`
+* `glme_imp()`
+* `clmm_imp()`
+* `mlogitmm_imp()`
+* `betamm_imp()`
+* `lognormmm_imp()`
+]
+
+.col[
+**Survival Models**
+
+* `coxph_imp()`
+* `survreg_imp()`
+* `JM_imp()`
+]
+]
+
+
+
+
+.footnote[
+[Full documentation at https://nerler.github.io/JointAI/](https://nerler.github.io/JointAI/)
+]
+
+---
+
+## JointAI: More Features
+
+.flex-grid[
+.col[
+&lt;button class="modal-button" href="#myModal1"&gt;Model Specification&lt;/button&gt;
+&lt;div id="myModal1" class="modal"&gt;
+  &lt;div class="modal-content"&gt;
+    &lt;span class="close"&gt;&amp;times;&lt;/span&gt;
+    &lt;ul&gt;
+    &lt;li&gt;auxiliary variables (&lt;a href = "https://nerler.github.io/JointAI/articles/ModelSpecification.html#auxiliary-variables"&gt;&lt;code&gt;auxvars&lt;/code&gt;&lt;/a&gt;)&lt;/li&gt;
+    &lt;li&gt; shrinkage (ridge)
+    (&lt;a href = "https://nerler.github.io/JointAI/articles/ModelSpecification.html#shrinkage"&gt;&lt;code&gt;shrinkage&lt;/code&gt;&lt;/a&gt;)
+    &lt;li&gt; truncation of continuous distributions 
+    (&lt;a href = "https://nerler.github.io/JointAI/articles/ModelSpecification.html#functions-with-restricted-support"&gt;&lt;code&gt;trunc&lt;/code&gt;&lt;/a&gt;)
+    &lt;li&gt; setting reference categories 
+    (&lt;a href="https://nerler.github.io/JointAI/articles/ModelSpecification.html#reference-categories"&gt;&lt;code&gt;refcats&lt;/code&gt;&lt;/a&gt;)
+    &lt;li&gt; change hyper-parameters 
+    (&lt;a href = "https://nerler.github.io/JointAI/articles/ModelSpecification.html#hyper-parameters"&gt;&lt;code&gt;hyperpars&lt;/code&gt;&lt;/a&gt;)
+    &lt;li&gt; parameters to be monitored 
+    (&lt;a href="https://nerler.github.io/JointAI/articles/SelectingParameters.html"&gt;&lt;code&gt;monitor_params&lt;/code&gt;&lt;/a&gt;)&lt;/li&gt;
+    &lt;li&gt; export the JAGS model
+    (&lt;code&gt;modelname&lt;/code&gt;,
+    &lt;code&gt;modeldir&lt;/code&gt;,
+    &lt;code&gt;keep_model&lt;/code&gt;)
+    &lt;li&gt; customize the JAGS model (&lt;code&gt;modelname&lt;/code&gt;,
+    &lt;code&gt;modeldir&lt;/code&gt;,
+    &lt;code&gt;overwrite&lt;/code&gt;)
+    &lt;/ul&gt;
+  &lt;/div&gt;
+&lt;/div&gt;
+
+
+&lt;button class="modal-button" href="#myModal2"&gt;MCMC settings&lt;/button&gt;
+&lt;div id="myModal2" class="modal"&gt;
+  &lt;div class="modal-content"&gt;
+    &lt;span class="close"&gt;&amp;times;&lt;/span&gt;
+    &lt;ul&gt;
+    &lt;li&gt;adaptive phase 
+    (&lt;a href="https://nerler.github.io/JointAI/articles/MCMCsettings.html#adaptive-phase"&gt;&lt;code&gt;n.adapt&lt;/code&gt;&lt;/a&gt;)&lt;/li&gt;
+    &lt;li&gt;sampling phase 
+        (&lt;a href="https://nerler.github.io/JointAI/articles/MCMCsettings.html#sampling-iterations"&gt;&lt;code&gt;n.iter&lt;/code&gt;&lt;/a&gt;)&lt;/li&gt;
+    &lt;li&gt;number of chains
+        (&lt;a href="https://nerler.github.io/JointAI/articles/MCMCsettings.html#number-of-chains"&gt;&lt;code&gt;n.chains&lt;/code&gt;&lt;/a&gt;)&lt;/li&gt;
+    &lt;li&gt;thinning
+        (&lt;a href="https://nerler.github.io/JointAI/articles/MCMCsettings.html#thinning"&gt;&lt;code&gt;thin&lt;/code&gt;&lt;/a&gt;)&lt;/li&gt;
+    &lt;li&gt;initial values 
+        (&lt;a href="https://nerler.github.io/JointAI/articles/MCMCsettings.html#initial-values"&gt;&lt;code&gt;inits&lt;/code&gt;&lt;/a&gt;,
+    &lt;code&gt;&amp;lt;object&amp;gt;$mcmc_settings$inits&lt;/code&gt;)&lt;/li&gt;
+    &lt;li&gt;seed value (&lt;code&gt;seed&lt;/code&gt;)&lt;/li&gt;
+    &lt;li&gt;continue sampling 
+    (&lt;a href="https://nerler.github.io/JointAI/reference/add_samples.html"&gt;&lt;code&gt;add_samples()&lt;/code&gt;&lt;/a&gt;)&lt;/li&gt;
+    &lt;/ul&gt;
+  &lt;/div&gt;
+&lt;/div&gt;
+
+
+
+&lt;button class="modal-button" href = "#modal-plots"&gt;Plots&lt;/button&gt;
+&lt;div class="modal" id="modal-plots"&gt;
+  &lt;div class="modal-content"&gt;
+    &lt;span class="close"&gt;&amp;times;&lt;/span&gt;
+    &lt;ul&gt;
+    &lt;li&gt;data distribution 
+        (&lt;a href="https://nerler.github.io/JointAI/articles/VisualizingIncompleteData.html#visualize-the-distribution-of-each-variable"&gt;
+        &lt;code&gt;plot_all()&lt;/code&gt;&lt;/a&gt;)&lt;/li&gt;
+    &lt;li&gt;missing data pattern 
+        (&lt;a href = "https://nerler.github.io/JointAI/articles/VisualizingIncompleteData.html#missing-data-pattern"&gt;
+        &lt;code&gt;md_pattern()&lt;/code&gt;&lt;/a&gt;)&lt;/li&gt;
+    &lt;li&gt;MCMC chains 
+        (&lt;a href = "https://nerler.github.io/JointAI/articles/AfterFitting.html#trace-plot"&gt;
+        &lt;code&gt;traceplot()&lt;/code&gt;&lt;/a&gt;)&lt;/li&gt;
+    &lt;li&gt;posterior density 
+        (&lt;a href="https://nerler.github.io/JointAI/articles/AfterFitting.html#density-plot"&gt;&lt;code&gt;densplot()&lt;/code&gt;&lt;/a&gt;)&lt;/li&gt;
+    &lt;li&gt;imputed vs observed data 
+        (&lt;a href="https://nerler.github.io/JointAI/articles/AfterFitting.html#export-of-imputed-values"&gt;
+        &lt;code&gt;plot_imp_distr()&lt;/code&gt;&lt;/a&gt;)&lt;/li&gt;
+    &lt;li&gt;Monte Carlo Error 
+    (&lt;a href="https://nerler.github.io/JointAI/articles/AfterFitting.html#sec:mcerror"&gt;&lt;code&gt;plot(MC_error(&amp;lt;object&amp;gt;))&lt;/code&gt;&lt;/a&gt;)&lt;/li&gt;
+    &lt;/ul&gt;
+  &lt;/div&gt;
+&lt;/div&gt;
+
+&lt;button class="modal-button" href = "#modal-parallel"&gt;Parallel Sampling&lt;/button&gt;
+&lt;div class="modal" id="modal-parallel"&gt;
+  &lt;div class="modal-content"&gt;
+    &lt;span class="close"&gt;&amp;times;&lt;/span&gt;
+    Using the R packages &lt;strong&gt;future&lt;/strong&gt; and &lt;strong&gt;doFuture&lt;/strong&gt;:
+&lt;pre&gt;&lt;code class="r hljs remark-code"&gt;
+&lt;div class="remark-code-line"&gt;&lt;span class="hljs-keyword"&gt;library&lt;/span&gt;(&lt;span class="hljs-string"&gt;"doFuture"&lt;/span&gt;)&lt;/div&gt;
+&lt;div class="remark-code-line"&gt;plan(multiprocess(workers = &lt;span class="hljs-number"&gt;6&lt;/span&gt;))&lt;/div&gt;
+&lt;div class="remark-code-line"&gt;registerDoFuture()&lt;/div&gt;
+&lt;div class="remark-code-line"&gt;&lt;/div&gt;
+&lt;div class="remark-code-line"&gt;&lt;span class="hljs-comment"&gt;## fit JointAI model ...&lt;/span&gt;&lt;/div&gt;&lt;br&gt;
+&lt;div class="remark-code-line"&gt;&lt;span class="hljs-comment"&gt;## to re-set to sequential evaluation:&lt;/span&gt;&lt;/div&gt;
+&lt;div class="remark-code-line"&gt;plan(sequential())&lt;/div&gt;
+&lt;/code&gt;&lt;/pre&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+
+]
+
+.col[
+
+&lt;button class="modal-button" href = "#modal-clm"&gt;
+Cumulative Logit Models&lt;/button&gt;
+&lt;div class="modal" id="modal-clm"&gt;
+  &lt;div class="modal-content"&gt;
+    &lt;span class="close"&gt;&amp;times;&lt;/span&gt;
+    &lt;ul&gt;
+    &lt;li&gt;invert the OR 
+    (&lt;a href="https://nerler.github.io/JointAI/reference/model_imp.html#cumulative-logit-mixed-models"&gt;&lt;code&gt;rev&lt;/code&gt;&lt;/a&gt;)
+        \[\log\left(\frac{P(y_i \color{var(--nord14)}{&gt;} k)}{P(y_i \color{var(--nord14)}{\leq} k)}\right) = \gamma_k + \eta_i
+        \quad\text{vs}\quad
+        \log\left(\frac{P(y_i \color{var(--nord14)}{\leq} k)}{P(y_i \color{var(--nord14)}{&gt;} k)}\right) = \gamma_k + \eta_i\]
+    &lt;/li&gt;
+    &lt;li&gt;partial proportional odds 
+        (&lt;a href="https://nerler.github.io/JointAI/reference/model_imp.html#cumulative-logit-mixed-models"&gt;&lt;code&gt;nonprop&lt;/code&gt;&lt;/a&gt;)
+        \[\log\left(\frac{P(y_i &gt; k)}{P(y_i \leq k)}\right) = \gamma_k + \eta_i
+        \quad\text{vs}\quad
+        \log\left(\frac{P(y_i \leq k)}{P(y_i &gt; k)}\right) = \gamma_k + \eta_i \color{var(--nord14)}{+ \eta_{ki}}\]
+    &lt;/li&gt;
+    &lt;/ul&gt;
+  &lt;/div&gt;
+&lt;/div&gt;
+
+
+&lt;button class="modal-button" href = "#modal-multi-level"&gt;
+Multi-level Models&lt;/button&gt;
+&lt;div class="modal" id="modal-multi-level"&gt;
+  &lt;div class="modal-content"&gt;
+    &lt;span class="close"&gt;&amp;times;&lt;/span&gt;
+    &lt;ul&gt;
+    &lt;li&gt;&lt;strong&gt;lme4&lt;/strong&gt; or &lt;strong&gt;nlme&lt;/strong&gt; type specification&lt;/li&gt;
+    &lt;li&gt;nested and crossed random effects&lt;br&gt;(determined by data structure)&lt;/li&gt;
+    &lt;li&gt;2, 3, 4, ... levels of grouping,
+        i.e., &lt;code&gt; ... + (time | id) + (1 | group) + (1 | center ) + (1 | country) + ...&lt;/code&gt;&lt;/li&gt;
+    &lt;li&gt;multi-level structure also for survival models&lt;/li&gt;&lt;br&gt;
+    &lt;li&gt;uses hierarchical centering, i.e., 
+    \(\mathbf b \sim N(\mathbf X\boldsymbol\beta, \mathbf D)\)&lt;/li&gt;
+    &lt;/ul&gt;
+    &lt;a href="https://nerler.github.io/JointAI/reference/model_imp.html#model-formulas"&gt;&amp;#8680; For more info see the package documentation.&lt;/a&gt;
+  &lt;/div&gt;
+&lt;/div&gt;
+
+
+
+&lt;button class="modal-button" href = "#modal-survival"&gt;
+Survival&lt;br&gt;(with Time-varying Covariates) &lt;/button&gt;
+&lt;div class="modal" id="modal-survival"&gt;
+  &lt;div class="modal-content"&gt;
+    &lt;span class="close"&gt;&amp;times;&lt;/span&gt;
+    &lt;ul&gt;
+    &lt;li&gt;proportional hazards model with &lt;strong&gt;time-varying covariates&lt;/strong&gt;&lt;br&gt;
+    (using &lt;a href="https://nerler.github.io/JointAI/reference/model_imp.html#survival-models-with-frailties-or-time-varying-covariates"&gt;
+    &lt;code&gt; + (1 | id)&lt;/code&gt;&lt;/a&gt; and
+    &lt;a href="https://nerler.github.io/JointAI/reference/model_imp.html#survival-models-with-frailties-or-time-varying-covariates"&gt;
+    &lt;code&gt; timevar = "&amp;lt;...&amp;gt;"&lt;/code&gt;&lt;/a&gt;)&lt;/li&gt;
+    &lt;li&gt;&lt;strong&gt;baseline hazard&lt;/strong&gt;: B-spline with &lt;code&gt;df_basehaz&lt;/code&gt; degrees of freedom&lt;/li&gt;&lt;br&gt;
+    &lt;li&gt;&lt;/strong&gt;joint model&lt;/strong&gt; for longitudinal and survival data&lt;br&gt;
+    (using &lt;a href = "https://nerler.github.io/JointAI/reference/model_imp.html#modelling-multiple-models-simultaneously-joint-models"&gt;
+    &lt;code&gt;formula = list(&amp;lt;...&amp;gt;)&lt;/code&gt;&lt;/a&gt; and
+    &lt;a href="https://nerler.github.io/JointAI/reference/model_imp.html#modelling-multiple-models-simultaneously-joint-models"&gt;
+    &lt;code&gt;timevar = "&amp;lt;...&amp;gt;"&lt;/code&gt;&lt;/a&gt;)&lt;/li&gt;
+    &lt;li&gt;&lt;strong&gt;association structure&lt;/strong&gt; (&lt;code&gt;assoc_type&lt;/code&gt;)
+        &lt;ul&gt;
+        &lt;li&gt;underlying value (&lt;code&gt;underl.value&lt;/code&gt;)&lt;/li&gt;
+        &lt;li&gt;observed/imputed value (&lt;code&gt;obs.value&lt;/code&gt;)&lt;/li&gt;
+        &lt;/ul&gt;
+    &lt;/li&gt;
+    &lt;li&gt;&lt;strong&gt;multivariate joint model&lt;/strong&gt;:&lt;br&gt;
+    full / block-diagonal / independent random effects&lt;/li&gt;
+    &lt;/ul&gt;
+  &lt;/div&gt;
+&lt;/div&gt;
+
+]
+
+.col[
+
+&lt;button class="modal-button" href = "#modal-blackbox"&gt;
+Shining Light into the Black Box&lt;/button&gt;
+&lt;div class="modal" id="modal-blackbox"&gt;
+  &lt;div class="modal-content"&gt;
+    &lt;span class="close"&gt;&amp;times;&lt;/span&gt;
+    &lt;ul&gt;
+    &lt;li&gt;monitor any node 
+        (&lt;a href="https://nerler.github.io/JointAI/articles/SelectingParameters.html#other-parameters"&gt;
+        &lt;code&gt;monitor_params&lt;/code&gt;&lt;/a&gt;)&lt;/li&gt;
+    &lt;li&gt;see the JAGS model (&lt;code&gt;&amp;lt;object&amp;gt;$jagsmodel&lt;/code&gt;)&lt;/li&gt;
+    &lt;li&gt;print model info (&lt;a href="https://nerler.github.io/JointAI/articles/SelectingParameters.html#side-note-getting-information-about-of-the-imputation-models"&gt;
+    &lt;code&gt;list_models()&lt;/code&gt;&lt;/a&gt;,
+    &lt;code&gt;&amp;lt;object&amp;gt;$models&lt;/code&gt;)&lt;/li&gt;
+    &lt;li&gt;access the JAGS model object
+    (&lt;code&gt;&amp;lt;object&amp;gt;$model&lt;/code&gt;)&lt;/li&gt;
+    &lt;li&gt;list all monitored parameters 
+    (&lt;a href="https://nerler.github.io/JointAI/articles/SelectingParameters.html#parameters-of-the-analysis-model"&gt;
+    &lt;code&gt;parameters()&lt;/code&gt;&lt;/a&gt;)&lt;/li&gt;
+    &lt;li&gt;list all regression coefficients 
+    (&lt;code&gt;&amp;lt;object&amp;gt;$coef_list&lt;/code&gt;)&lt;/li&gt;
+    &lt;/ul&gt;
+  &lt;/div&gt;
+&lt;/div&gt;
+
+&lt;button class="modal-button" href = "#modal-compinfo"&gt;
+Computational Infos&lt;/button&gt;
+&lt;div class="modal" id="modal-compinfo"&gt;
+  &lt;div class="modal-content"&gt;
+    &lt;span class="close"&gt;&amp;times;&lt;/span&gt;
+    &lt;code&gt;&amp;lt;object&amp;gt;$comp_info&lt;/code&gt;:
+    &lt;ul&gt;
+    &lt;li&gt;start time&lt;/li&gt;
+    &lt;li&gt;duration&lt;/li&gt;
+    &lt;li&gt;package version&lt;/li&gt;
+    &lt;li&gt;parallel setting&lt;/li&gt;
+    &lt;/ul&gt;
+  &lt;/div&gt;
+&lt;/div&gt;
+
+&lt;button class="modal-button" href = "#modal-subset"&gt;
+Output Options&lt;/button&gt;
+&lt;div class="modal" id="modal-subset"&gt;
+  &lt;div class="modal-content"&gt;
+    &lt;span class="close"&gt;&amp;times;&lt;/span&gt;
+    &lt;ul&gt;
+    &lt;li&gt;Subset selection
+        &lt;ul&gt;
+        &lt;li&gt;iterations 
+            (&lt;a href="https://nerler.github.io/JointAI/articles/AfterFitting.html#subset-of-mcmc-samples"&gt;
+            &lt;code&gt;start&lt;/code&gt;, &lt;code&gt;end&lt;/code&gt;, &lt;code&gt;thin&lt;/code&gt;&lt;/a&gt;)&lt;/li&gt;
+        &lt;li&gt;nodes
+        (&lt;a href="https://nerler.github.io/JointAI/articles/AfterFitting.html#subset-of-parameters"&gt;
+        &lt;code&gt;subset&lt;/code&gt;&lt;/a&gt;)&lt;/li&gt;
+        &lt;li&gt;chains (&lt;code&gt;exclude_chains&lt;/code&gt;)&lt;/li&gt;
+        &lt;li&gt;sub-models (&lt;code&gt;outcome&lt;/code&gt;)&lt;/li&gt;
+        &lt;/ul&gt;&lt;br&gt;
+    &lt;li&gt;export imputed values&lt;br&gt;(&lt;code&gt;monitor_params = c(imps = TRUE)&lt;/code&gt;,
+&lt;code&gt;get_MIdat()&lt;/code&gt;)&lt;/li&gt;
+    &lt;/ul&gt;
+  &lt;/div&gt;
+&lt;/div&gt;
+
+
+&lt;button class="modal-button" href = "#modal-prediction"&gt;Prediction&lt;/button&gt;
+&lt;div class="modal" id="modal-prediction"&gt;
+  &lt;div class="modal-content"&gt;
+    &lt;span class="close"&gt;&amp;times;&lt;/span&gt;
+    &lt;ul&gt;
+    &lt;li&gt;create "newdata" for effect plots 
+        (&lt;a href="https://nerler.github.io/JointAI/reference/predDF.html"&gt;
+        &lt;code&gt;predDF()&lt;/code&gt;&lt;/a&gt;)&lt;/li&gt;&lt;br&gt;
+    &lt;li&gt;prediction (&lt;code&gt;predict()&lt;/code&gt;)
+    &lt;ul&gt; 
+    &lt;li&gt;&lt;strong&gt;GLM(M)&lt;/strong&gt; type models: linear predictor or outcome scale&lt;br&gt;
+    &lt;span style = "text-decoration: underline;"&gt;for now&lt;/span&gt;:
+    &lt;span style = "color: var(--nord12);"&gt;
+    assumption random effects = 0&lt;/span&gt;
+    &lt;/li&gt;
+    &lt;li&gt;&lt;strong&gt;prop. hazard models&lt;/strong&gt;: (log) hazard, (-log) survival&lt;/li&gt;
+    &lt;li&gt;&lt;strong&gt;joint model&lt;/strong&gt; for longitudinal &amp; survival data:
+    &lt;span style = "color:var(--nord11);"&gt;not 
+    &lt;span style = "text-decoration: underline;"&gt;yet&lt;/span&gt; possible&lt;/span&gt;&lt;/li&gt;
+    &lt;/ul&gt;&lt;/li&gt;
+    &lt;/ul&gt;
+  &lt;/div&gt;
+&lt;/div&gt;
+
+]
+
+]
+
+
+
+
+---
+
+class: the-end, center, middle
+layout: true
+count: false
+
+# Thank you for your attention!
+
+&lt;div class="contact"&gt;
+&lt;i class="fas fa-envelope"&gt;&lt;/i&gt; &lt;a href="mailto:n.erler@erasmusmc.nl" class="email"&gt;n.erler@erasmusmc.nl&lt;/a&gt;&amp;emsp;
+&lt;a href="https://twitter.com/N_Erler" target="_blank"&gt;&lt;i class="fab fa-twitter"&gt;&lt;/i&gt; N_Erler&lt;/a&gt;&amp;emsp;
+  &lt;a href="https://github.com/NErler" target="_blank"&gt;&lt;i class="fab fa-github"&gt;&lt;/i&gt; NErler&lt;/a&gt;&amp;emsp;
+  &lt;a href="https://nerler.com" target="_blank"&gt;&lt;i class="fas fa-globe-americas"&gt;&lt;/i&gt; https://nerler.com&lt;/a&gt;
+&lt;/div&gt;
+
+
+
+
+
+---
+count: false
+
+
+
+
+
+
+&lt;script type="text/javascript" async
+  src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/2.7.7/MathJax.js?config=TeX-MML-AM_CHTML"&gt;
+&lt;/script&gt;
+ 
+ 
+&lt;script&gt;
+// Get the button that opens the modal
+var btn = document.querySelectorAll("button.modal-button");
+
+// All page modals
+var modals = document.querySelectorAll('.modal');
+
+// Get the &lt;span&gt; element that closes the modal
+var spans = document.getElementsByClassName("close");
+
+// When the user clicks the button, open the modal
+for (var i = 0; i &lt; btn.length; i++) {
+ btn[i].onclick = function(e) {
+    e.preventDefault();
+    modal = document.querySelector(e.target.getAttribute("href"));
+    modal.style.display = "block";
+ }
+}
+
+// When the user clicks on &lt;span&gt; (x), close the modal
+for (var i = 0; i &lt; spans.length; i++) {
+ spans[i].onclick = function() {
+    for (var index in modals) {
+      if (typeof modals[index].style !== 'undefined') modals[index].style.display = "none";    
+    }
+ }
+}
+
+// When the user clicks anywhere outside of the modal, close it
+window.onclick = function(event) {
+    if (event.target.classList.contains('modal')) {
+     for (var index in modals) {
+      if (typeof modals[index].style !== 'undefined') modals[index].style.display = "none";    
+     }
+    }
+}
+&lt;/script&gt;
+
+    </textarea>
+<style data-target="print-only">@media screen {.remark-slide-container{display:block;}.remark-slide-scaler{box-shadow:none;}}</style>
+<script src="https://remarkjs.com/downloads/remark-latest.min.js"></script>
+<script>var slideshow = remark.create({
+"highlightStyle": "nord",
+"slideNumberFormat": "%current%",
+"highlightLines": true,
+"highlightSpans": true,
+"countIncrementalSlides": false,
+"ratio": "16:9"
+});
+if (window.HTMLWidgets) slideshow.on('afterShowSlide', function (slide) {
+  window.dispatchEvent(new Event('resize'));
+});
+(function(d) {
+  var s = d.createElement("style"), r = d.querySelector(".remark-slide-scaler");
+  if (!r) return;
+  s.type = "text/css"; s.innerHTML = "@page {size: " + r.style.width + " " + r.style.height +"; }";
+  d.head.appendChild(s);
+})(document);
+
+(function(d) {
+  var el = d.getElementsByClassName("remark-slides-area");
+  if (!el) return;
+  var slide, slides = slideshow.getSlides(), els = el[0].children;
+  for (var i = 1; i < slides.length; i++) {
+    slide = slides[i];
+    if (slide.properties.continued === "true" || slide.properties.count === "false") {
+      els[i - 1].className += ' has-continuation';
+    }
+  }
+  var s = d.createElement("style");
+  s.type = "text/css"; s.innerHTML = "@media print { .has-continuation { display: none; } }";
+  d.head.appendChild(s);
+})(document);
+// delete the temporary CSS (for displaying all slides initially) when the user
+// starts to view slides
+(function() {
+  var deleted = false;
+  slideshow.on('beforeShowSlide', function(slide) {
+    if (deleted) return;
+    var sheets = document.styleSheets, node;
+    for (var i = 0; i < sheets.length; i++) {
+      node = sheets[i].ownerNode;
+      if (node.dataset["target"] !== "print-only") continue;
+      node.parentNode.removeChild(node);
+    }
+    deleted = true;
+  });
+})();
+(function() {
+  "use strict"
+  // Replace <script> tags in slides area to make them executable
+  var scripts = document.querySelectorAll(
+    '.remark-slides-area .remark-slide-container script'
+  );
+  if (!scripts.length) return;
+  for (var i = 0; i < scripts.length; i++) {
+    var s = document.createElement('script');
+    var code = document.createTextNode(scripts[i].textContent);
+    s.appendChild(code);
+    var scriptAttrs = scripts[i].attributes;
+    for (var j = 0; j < scriptAttrs.length; j++) {
+      s.setAttribute(scriptAttrs[j].name, scriptAttrs[j].value);
+    }
+    scripts[i].parentElement.replaceChild(s, scripts[i]);
+  }
+})();
+(function() {
+  var links = document.getElementsByTagName('a');
+  for (var i = 0; i < links.length; i++) {
+    if (/^(https?:)?\/\//.test(links[i].getAttribute('href'))) {
+      links[i].target = '_blank';
+    }
+  }
+})();
+// adds .remark-code-has-line-highlighted class to <pre> parent elements
+// of code chunks containing highlighted lines with class .remark-code-line-highlighted
+(function(d) {
+  const hlines = d.querySelectorAll('.remark-code-line-highlighted');
+  const preParents = [];
+  const findPreParent = function(line, p = 0) {
+    if (p > 1) return null; // traverse up no further than grandparent
+    const el = line.parentElement;
+    return el.tagName === "PRE" ? el : findPreParent(el, ++p);
+  };
+
+  for (let line of hlines) {
+    let pre = findPreParent(line);
+    if (pre && !preParents.includes(pre)) preParents.push(pre);
+  }
+  preParents.forEach(p => p.classList.add("remark-code-has-line-highlighted"));
+})(document);</script>
+
+<script>
+slideshow._releaseMath = function(el) {
+  var i, text, code, codes = el.getElementsByTagName('code');
+  for (i = 0; i < codes.length;) {
+    code = codes[i];
+    if (code.parentNode.tagName !== 'PRE' && code.childElementCount === 0) {
+      text = code.textContent;
+      if (/^\\\((.|\s)+\\\)$/.test(text) || /^\\\[(.|\s)+\\\]$/.test(text) ||
+          /^\$\$(.|\s)+\$\$$/.test(text) ||
+          /^\\begin\{([^}]+)\}(.|\s)+\\end\{[^}]+\}$/.test(text)) {
+        code.outerHTML = code.innerHTML;  // remove <code></code>
+        continue;
+      }
+    }
+    i++;
+  }
+};
+slideshow._releaseMath(document);
+</script>
+<!-- dynamically load mathjax for compatibility with self-contained -->
+<script>
+(function () {
+  var script = document.createElement('script');
+  script.type = 'text/javascript';
+  script.src  = 'https://mathjax.rstudio.com/latest/MathJax.js?config=TeX-MML-AM_CHTML';
+  if (location.protocol !== 'file:' && /^https?:/.test(script.src))
+    script.src  = script.src.replace(/^https?:/, '');
+  document.getElementsByTagName('head')[0].appendChild(script);
+})();
+</script>
+  </body>
+</html>

@@ -1,0 +1,49 @@
+
+Bayesian proportional hazards model fitted with JointAI
+
+Call:
+coxph_imp(formula = Surv(graftsurv, LTx_Outcome != "Alive") ~ 
+    RecSex + DonorGraftCat + ns(RecAgeLTx1, df = 2) + ischemic_hrs + 
+        TH1_Donor_age + ns(year, df = 2) + graftnr * recurrence + 
+        (1 | IDgraft) + (1 | IDPAT), data = graftsurv_subDF, 
+    n.chains = n.chains, n.iter = n.iter, seed = seed, timevar = "futime")
+
+
+Number of events: 532 
+
+Posterior summary:
+                           Mean     SD     2.5%   97.5% tail-prob.
+RecSexF                 -0.2352 0.1321 -0.50090  0.0229    0.07225
+DonorGraftCatL           0.3356 0.3478 -0.35754  0.9888    0.32925
+DonorGraftCatDBD_P       0.2810 0.3011 -0.31326  0.8693    0.35075
+DonorGraftCatDCD        -0.0102 0.9890 -2.23521  1.6839    0.93075
+ns(RecAgeLTx1, df = 2)1 -0.0455 0.4449 -0.90341  0.8392    0.92000
+ns(RecAgeLTx1, df = 2)2  0.9315 0.3205  0.29891  1.5650    0.00375
+ischemic_hrs             0.0220 0.0195 -0.01697  0.0593    0.25075
+TH1_Donor_age            0.0164 0.0041  0.00858  0.0247    0.00000
+ns(year, df = 2)1       -3.2779 0.7175 -4.68790 -1.8870    0.00000
+ns(year, df = 2)2       -0.3034 0.2970 -0.89116  0.2593    0.31150
+graftnr2                 0.5273 0.2193  0.10398  0.9545    0.01425
+graftnr3+                0.5534 0.5842 -0.65321  1.6050    0.35575
+recurrence1              1.8959 0.1571  1.59418  2.2053    0.00000
+graftnr2:recurrence1    -1.6978 0.3190 -2.33237 -1.0823    0.00000
+graftnr3+:recurrence1   -0.0657 0.7168 -1.37484  1.3621    0.90400
+                        GR-crit MCE/SD
+RecSexF                    1.03 0.0474
+DonorGraftCatL             1.03 0.0440
+DonorGraftCatDBD_P         1.02 0.0404
+DonorGraftCatDCD           1.06 0.0602
+ns(RecAgeLTx1, df = 2)1    1.00 0.0288
+ns(RecAgeLTx1, df = 2)2    1.01 0.0342
+ischemic_hrs               1.01 0.0358
+TH1_Donor_age              1.03 0.0414
+ns(year, df = 2)1          1.02 0.0388
+ns(year, df = 2)2          1.03 0.0480
+graftnr2                   1.02 0.0459
+graftnr3+                  1.04 0.0661
+recurrence1                1.03 0.0460
+graftnr2:recurrence1       1.00 0.0345
+graftnr3+:recurrence1      1.03 0.0514
+
+
+Posterior summary of random effects covariance matrix:
