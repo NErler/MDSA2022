@@ -41,7 +41,7 @@ class: left, top, title-slide
 Models</div>
 <div class = "subtitle">A Bayesian Approach</div>
 <div class = "date">Workshop on Missing Data &amp; Survival
-Analysis<br>June 1st, 2022</div>
+Analysis<br>June 1<sup>st</sup>, 2022</div>
 <div class  = "author">Nicole Erler</div>
 <div class = "institute">Department of Biostatistics</div>
 <div class = "contact">
@@ -780,7 +780,7 @@ time-to-event outcome.
 
 .pull-left[
 
-Recurrence of PSC and graft number are **time-varing variables**:
+Recurrence of PSC and graft number are **time-varying variables**:
 &lt;ul class = "arrowlist"&gt;
 &lt;li&gt;the data is in "long" format&lt;/li&gt;
 &lt;li&gt;multiple rows refer to the same patient&lt;/li&gt;
@@ -1379,6 +1379,9 @@ missing values in baseline covariates.
 
 &lt;/div&gt;&lt;/div&gt;&lt;/div&gt;
 
+&lt;a href = "https://nerler.github.io/JointAI/"&gt;
+&lt;img src = "figures/JointAI.png" style = "position: absolute; right: 62px; top: 117px; width: 165px;"&gt;&lt;/a&gt;
+
 ???
 
 We've now seen that this Bayesian approach is theoretically valid (at least as
@@ -1702,6 +1705,23 @@ each level of the hierarchy.
 
 &lt;img src="index_files/figure-html/graftsurv-1.png" width="100%" /&gt;
 
+???
+
+In this project on recurrence of PSC after liver transplant we were not only
+interested in patient survival, but also investigated graft survival.
+
+In this second analysis, we saw the transplanted organs as the unit of investigation.
+That changes things a bit. We still have recurrence as a time-varying covariate.
+Some grafts never experience recurrence, for some grafts recurrence changes from
+0 to 1 and grafts that are transplanted after the patient has experienced
+recurrence, will have the value 1 for recurrence the whole time.
+
+The graft number is now no longer time-varying because it does not change through
+out the "life" of a graft.
+And the endpoint changed a bit. The event of interest is now graft death, and 
+this includes the case where the patient died, but also when the patient
+received a new transplant.
+
 
 ---
 
@@ -1717,24 +1737,44 @@ fmla_graftsurv &lt;- Surv(graft_time, graft_event) ~ recip_sex + graft_type +
   ... + graftnr * recurrence + `(1 | ID_graft) + (1 | ID_pat)`
 
 graftsurv &lt;- coxph_imp(fmla_graftsurv, data = PSC_data, timevar = "futime",
-                       n.iter = 1000, n.chains = 6)
+                       n.iter = 1000, n.chains = 8)
 ```
-
-
-* Can be seen as gap time approach for **recurrent events** in patients.
-* Possible to add **more hierarchical levels**:&lt;br&gt;
-  grafts &amp;gt; patients &amp;gt; hospitals &amp;gt; countries
 
 ???
 
-We can easily add multiple levels of hierarchy by specifying additional 
-random effects terms.
+To model this in **JointAI** we only need to change the model a bit.
 
-Because the outcome is on the graft level, but covariates are on the patient
-level, this will now actually add a random intercept to the linear predictor
-of the survival model.
+Because we now consider the grafts as our unit of interest, we have grafts nested
+in patients, and we have repeated measurements of recurrence within each 
+graft, which means we add an additional level to our hierarchy and add another
+random intercept to the model.
 
-Another criticism of this model is that the time-dependent Cox model assumes
+For the rest, the model specification remains the same.
+
+--
+
+
+* Possible to add **more hierarchical levels**:&lt;br&gt;
+  grafts &amp;gt; patients &amp;gt; hospitals &amp;gt; countries
+
+* Can be seen as gap time approach for **recurrent events** in patients.
+
+???
+
+Technically, we could add even more levels to the hierarchy. For example, we
+could model that not just grafts are nested in patients, but that patients
+are nested in hospitals which are nested in countries.
+This could be done by just adding the random intercepts for the corresponding
+ID variables to the model formula.
+
+In our application, we considered the transplanted organs as our analysis unit of 
+interest. But we could also interpret this model differently. We can also look
+at it as using a gap-time approach for modelling recurrent events within 
+patients.
+
+Besides the fact that several of our covariates that should ideally be measured
+repeatedly within each graft, and not just once at baseline, 
+another criticism of this model is that the time-dependent Cox model assumes
 the covariates to be exogenous, but in many medical applications that is not
 a realistic assumption. The values of the time-dependent covariates do usually
 depend on the survival status of the patient.
@@ -1769,11 +1809,10 @@ for longitudinal and survival data instead.
 And this brings me to my next point: to show you that this Bayesian approach
 to handle incomplete covariates is very suitable for quite complex models.
 
-
-And this means that we can always divide the joint distribution into the 
-analysis model, a model for the covariates, and prior distributions.
-
-And this also works for fairly complex models.
+Because in this approach we specify the joint distribution in form of the 
+product of the analysis model, a specification for the covariates and the
+priors, 
+we can just exchange the analysis model with some more complex model.
 
 --
 
@@ -1795,10 +1834,14 @@ p(\color{var(--nord15)}{\mathbf x} \mid \boldsymbol\theta)}}\;\;
 
 ???
 
-For example, for our multivariate joint model for longitudinal and survival
+For example, a multivariate joint model for longitudinal and survival
 data. There, the model for the response consists of multiple parts,
 the time-to-event model, and the multivariate mixed model for the longitudinal
 biomarkers.
+
+But the principle remains the same.
+
+To specify such a joint model in **JointAI** we can do the following:
 
 
 ---
@@ -1820,6 +1863,22 @@ fmla &lt;- list(
 )
 ```
 
+???
+
+I again first specify the model formula.
+Because our analysis model now consists of multiple sub-models, I use a list
+of `formula` objects.
+
+This list contains the formula for a proportional hazards model for the time-to-event outcome,
+and separate formulas for each longitudinal outcome.
+
+Here, I use a different example from a project on patients with chronic hepatitis C.
+
+We have tree biomarkers, the log transformed bilirubin and AST, and the platelet count. For each of them I can use separate specifications of the random effects structure and select different sets of covariates.
+
+I included all three of them as covariates in the survival model, and, to model
+the association between the three biomarkers I also added them into each other's linear predictor in a sequential way.
+
 --
 
 
@@ -1829,6 +1888,22 @@ mod &lt;- JM_imp(fmla, data = HCVdat, `timevar = "time"`, `rd_vcov = "full"`,
 ```
 
 `rd_vcov`: type of random effects variance-covariance matrix.
+
+???
+
+To fit the model we can use the function `JM_imp()`. We need to again specify
+the name of the time variable that contains the timing of the longitudinal
+measurements. In addition, we can specify how we would like to model the
+variance covariance matrix of the random effects.
+
+Here I have specified to use a full variance-covariance matrix, so that all the
+random effects from the three longitudinal models are modelled in one big
+multivariate normal distribution.
+
+Alternatively, I could have specified to use a block-diagonal structure, to
+treat random effects for the different outcomes as independent, or set all
+random effects to be independent.
+
 
 ---
 
@@ -1874,6 +1949,20 @@ mod &lt;- JM_imp(fmla, data = HCVdat, `timevar = "time"`, `rd_vcov = "full"`,
 [Full documentation at https://nerler.github.io/JointAI/](https://nerler.github.io/JointAI/)
 ]
 
+
+???
+
+The types of analysis models that are implemented in **JointAI** are listed here:
+
+You can fit generalized linear regression models and generalized linear mixed
+models, as well as cumulative logit models, multinomial logit models, and
+models using a beta distribution or a log-normal distribution.
+
+For survival data, there are the two types of models we've already seen and a
+parametric model using a Weibull distribution.
+
+For any of these models it is possible to specify multiple analysis models
+by using a list of model formulas, as we've seen in the joint model example.
 ---
 
 ## JointAI: More Features
@@ -1962,15 +2051,13 @@ mod &lt;- JM_imp(fmla, data = HCVdat, `timevar = "time"`, `rd_vcov = "full"`,
 &lt;div class="modal" id="modal-parallel"&gt;
   &lt;div class="modal-content"&gt;
     &lt;span class="close"&gt;&amp;times;&lt;/span&gt;
-    Using the R packages &lt;strong&gt;future&lt;/strong&gt; and &lt;strong&gt;doFuture&lt;/strong&gt;:
+    Using the R package &lt;strong&gt;future&lt;/strong&gt;:
 &lt;pre&gt;&lt;code class="r hljs remark-code"&gt;
-&lt;div class="remark-code-line"&gt;&lt;span class="hljs-keyword"&gt;library&lt;/span&gt;(&lt;span class="hljs-string"&gt;"doFuture"&lt;/span&gt;)&lt;/div&gt;
-&lt;div class="remark-code-line"&gt;plan(multiprocess(workers = &lt;span class="hljs-number"&gt;6&lt;/span&gt;))&lt;/div&gt;
-&lt;div class="remark-code-line"&gt;registerDoFuture()&lt;/div&gt;
-&lt;div class="remark-code-line"&gt;&lt;/div&gt;
+&lt;div class="remark-code-line"&gt;&lt;span class="hljs-keyword"&gt;library&lt;/span&gt;(&lt;span class="hljs-string"&gt;"future"&lt;/span&gt;)&lt;/div&gt;
+&lt;div class="remark-code-line"&gt;plan(multisession, workers = &lt;span class="hljs-number"&gt;8&lt;/span&gt;)&lt;/div&gt;
 &lt;div class="remark-code-line"&gt;&lt;span class="hljs-comment"&gt;## fit JointAI model ...&lt;/span&gt;&lt;/div&gt;&lt;br&gt;
 &lt;div class="remark-code-line"&gt;&lt;span class="hljs-comment"&gt;## to re-set to sequential evaluation:&lt;/span&gt;&lt;/div&gt;
-&lt;div class="remark-code-line"&gt;plan(sequential())&lt;/div&gt;
+&lt;div class="remark-code-line"&gt;plan(sequential)&lt;/div&gt;
 &lt;/code&gt;&lt;/pre&gt;
 &lt;/div&gt;
 &lt;/div&gt;
@@ -2009,7 +2096,7 @@ Multi-level Models&lt;/button&gt;
     &lt;span class="close"&gt;&amp;times;&lt;/span&gt;
     &lt;ul&gt;
     &lt;li&gt;&lt;strong&gt;lme4&lt;/strong&gt; or &lt;strong&gt;nlme&lt;/strong&gt; type specification&lt;/li&gt;
-    &lt;li&gt;nested and crossed random effects&lt;br&gt;(determined by data structure)&lt;/li&gt;
+    &lt;li&gt;nested and crossed random effects&lt;/li&gt;&lt;br&gt;
     &lt;li&gt;2, 3, 4, ... levels of grouping,
         i.e., &lt;code&gt; ... + (time | id) + (1 | group) + (1 | center ) + (1 | country) + ...&lt;/code&gt;&lt;/li&gt;
     &lt;li&gt;multi-level structure also for survival models&lt;/li&gt;&lt;br&gt;
@@ -2089,6 +2176,7 @@ Computational Infos&lt;/button&gt;
     &lt;li&gt;start time&lt;/li&gt;
     &lt;li&gt;duration&lt;/li&gt;
     &lt;li&gt;package version&lt;/li&gt;
+    &lt;li&gt;R version&lt;/li&gt;
     &lt;li&gt;parallel setting&lt;/li&gt;
     &lt;/ul&gt;
   &lt;/div&gt;
@@ -2108,11 +2196,11 @@ Output Options&lt;/button&gt;
         &lt;li&gt;nodes
         (&lt;a href="https://nerler.github.io/JointAI/articles/AfterFitting.html#subset-of-parameters"&gt;
         &lt;code&gt;subset&lt;/code&gt;&lt;/a&gt;)&lt;/li&gt;
-        &lt;li&gt;chains (&lt;code&gt;exclude_chains&lt;/code&gt;)&lt;/li&gt;
+        &lt;li&gt;chains (&lt;a href = "https://nerler.github.io/JointAI/articles/AfterFitting.html#subset-of-mcmc-samples"&gt;&lt;code&gt;exclude_chains&lt;/code&gt;&lt;/a&gt;)&lt;/li&gt;
         &lt;li&gt;sub-models (&lt;code&gt;outcome&lt;/code&gt;)&lt;/li&gt;
         &lt;/ul&gt;&lt;br&gt;
     &lt;li&gt;export imputed values&lt;br&gt;(&lt;code&gt;monitor_params = c(imps = TRUE)&lt;/code&gt;,
-&lt;code&gt;get_MIdat()&lt;/code&gt;)&lt;/li&gt;
+&lt;a href = "https://nerler.github.io/JointAI/reference/get_MIdat.html"&gt;&lt;code&gt;get_MIdat()&lt;/code&gt;&lt;/a&gt;)&lt;/li&gt;
     &lt;/ul&gt;
   &lt;/div&gt;
 &lt;/div&gt;
@@ -2148,6 +2236,36 @@ Output Options&lt;/button&gt;
 
 
 
+
+
+---
+
+## Summary
+
+Imputation of covariates &amp;#8680; sampling from the **correct predictive distributions**.
+
+**Direct specification is not straightforward** in settings with 
+- non-linear associations (incl. survival),
+- interactions,
+- multi-level data.
+
+--
+
+.flex-grid[
+.col[
+**MICE/FCS:**&lt;br&gt;
+uses direct specification&lt;br&gt;
+&amp;#8680; **biased** in these settings
+]
+.col[
+**Fully Bayesian approach:**&lt;br&gt;
+- specification of the joint distribution
+- derives full-conditionals from the joint
+
+&amp;#8680; Assures compatibility &amp; congeniality&lt;br&gt;
+&amp;#8680; Combined analysis &amp; imputation
+]
+]
 
 ---
 
