@@ -2292,7 +2292,7 @@ count: false
 library("metathis")
 
 meta() %>%
-  meta_name("github-repo" = "NErler/JointAI") %>% 
+  meta_name("github-repo" = "NErler/MDSA2022") %>% 
   meta_social(
     title = "Dealing with Incomlete Covariates in Survival Models: A Bayesian Approach",
     description = paste(
@@ -2318,7 +2318,7 @@ meta() %>%
 #   file = "figures/share-card.png",
 #   vheight = 600,
 #   vwidth = 600 * 191 / 100,
-#   delay = 60,
+#   delay = 120,
 #   rmd_args = list(
 #     output_options = list(
 #       nature = list(ratio = "191:100"),
