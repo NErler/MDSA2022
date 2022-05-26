@@ -65,7 +65,7 @@
 
 html {
   font-size: 26px;
-/*  -webkit-filter: invert();*/
+/*  -webkit-filter: hue-rotate(200deg) invert() contrast(150%);*/
 }
 
 body {
