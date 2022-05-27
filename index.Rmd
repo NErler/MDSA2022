@@ -121,23 +121,28 @@ count: false
 
 ???
 
-To give you a bit of an idea where we are headed and what to expect, here
+To give you a bit of an **idea where we are headed** and what to expect, here
 a quick overview.
 
-I will start with a motivating example from my work with the department of
+I will start with a **motivating example** from my work with the department of
 Gastroenterology & Hepatology at the Erasmus Medical Center and then take a 
-look at what method would usually be applied to handle the missing values in
-this type of setting, and what the issues are that we have with this approach
-and why we need an alternative.
+look at **what method would usually be applied** to handle the missing values in
+this type of setting, and what the **issues** are that we have with this approach
+and **why we need an alternative.**
 
-We'll then have a look at a fully Bayesian alternative.
-This approach is implemented in the R package JointAI and I'll show you 
-briefly how we could analyse the motivating example using JointAI, and
-how this approach and implementation works for even more complex settings, specifically a multivariate joint model for longitudinal and survival data.
+You will be familiar with much of this, but I think it is relevant to **get some
+context** and to get **familiar with my notation**.
+
+We'll then have a look at a **fully Bayesian alternative**.
+
+This approach is **implemented in the R package JointAI** and I'll show you 
+briefly how we could **analyse the motivating example** using JointAI, and
+how this **approach and implementation works for even more complex settings**, specifically a multivariate joint model for longitudinal and survival data.
 
 And if there is still time, we can have a more in depth look into what else
 you can do with JointAI.
 
+**Slides on Website**
 
 ---
 
@@ -159,21 +164,21 @@ you can do with JointAI.
 
 ???
 
-PSC, short for Primary Sclerosing Cholangitis, is a liver disease.
+PSC, short for **Primary Sclerosing Cholangitis**, is a liver disease.
 The mechanisms behind this disease are not yet fully known there is
 currently no cure but doctors can only try and treat the patient's symptoms.
 
-For advanced or complicated cases, liver transplant is the only potentially
-curative treatment, but in 10 - 30% of patients the disease recurs in the
+For advanced or complicated cases, **liver transplant is the only potentially
+curative treatment**, but in 10 - 30% of patients the **disease recurs** in the
 new organ.
 
-We had data from the European Liver Transplant Registry of 1549 patients
-who did receive a liver transplant for PSC, and several of these patients
+We had data from the European Liver Transplant Registry of **1549 patients
+who did receive a liver transplant for PSC**, and several of these patients
 actually received a second, third or even fourth transplant.
 
-The covariate of interest in our analysis was recurrence of PSC and in our
-analysis we wanted to include both recurrence and the graft number as
-time-varying covariates.
+The covariate of interest in our analysis was **recurrence of PSC** and in our
+analysis we wanted to include both **recurrence and the graft number as
+time-varying covariates.**
 
 - - -
 
@@ -185,8 +190,8 @@ time-varying covariates.
 
 ???
 
-In addition, we had 8 additional, time-constant covariates, of which 4 had
-missing values in up to 11% of the cases. 
+In addition, we had **8 additional, time-constant covariates**, of which **3 had
+missing values** in up to 11% of the cases. 
 
 - - -
 
@@ -198,9 +203,9 @@ missing values in up to 11% of the cases.
 
 ???
 
-So the analysis that would typically be performed if there were no missing 
-values (or by ignoring cases with missing values) would be a time-dependent
-Cox model.
+So the analysis that would **typically** be performed if there were no missing 
+values (or by ignoring cases with missing values) would be a **time-dependent
+Cox model**.
 
 ---
 
@@ -678,8 +683,14 @@ and the event indicator $\delta$.
 Using FCS (naively), the **imputation model** for
 $\color{var(--nord15)}{\mathbf x_1}$ would be
 $$\color{var(--nord15)}{\mathbf x_1} = \theta_0 + \theta_1 \mathbf T + \theta_2  \boldsymbol\delta + \theta_3 \color{var(--nord15)}{\mathbf x_2} + \theta_4 \color{var(--nord15)}{\mathbf x_3} + \ldots,$$
-i.e., assume a linear association between $\color{var(--nord15)}{\mathbf x_1}$
+i.e., assume a **linear association** between $\color{var(--nord15)}{\mathbf x_1}$
 and $\mathbf T$ and $\boldsymbol\delta$.
+
+.footnote[
+[<i class = "fas fa-file-alt"></i> White & Royston (2009)](https://doi.org/10.1002/sim.3618)
+&nbsp;
+[<i class = "fas fa-file-alt"></i> Bartlett et al. (2015)](https://doi.org/10.1177/0962280214521348)
+]
 
 ???
 
@@ -813,6 +824,7 @@ Then we could the linear regression model for $x_1$ with $y$ and other covariate
 as imputation model and this model of course assumes that there is a linear
 association between $x_1$ and $y$.
 
+- - -
 --
 
 .pull-right[
@@ -907,6 +919,10 @@ time-to-event outcome.
 
 ## Example: PSC Recurrence & Survival
 
+
+.footnote[
+[<i class = "fas fa-file-alt"></i> Erler et al. (2016)](https://doi.org/10.1002/sim.6944)
+]
 
 .pull-left[
 
@@ -1109,6 +1125,7 @@ The interesting question now is: How do we get the correct predictive
 distribution?
 
 
+- - -
 --
 
 .flex-grid[
@@ -1168,6 +1185,8 @@ The product of these two terms describes the full joint distribution of
 everything, all the data, response, covariates, observed or missing, and
 parameters.
 
+**We've now moved to the Bayesian framework**
+
 ---
 
 ## Factorization of the Joint Distribution
@@ -1191,6 +1210,7 @@ analysis in a complete data setting.
 But because we have missing values in the covariates, we need to specify a
 distribution for the covariates as well.
 
+- - -
 --
 
 .flex-grid[
@@ -1218,6 +1238,7 @@ multivariate distribution.
 On top of that, we could have covariates on different levels in a multi-level
 setting.
 
+- - -
 --
 
 <div style="width: 90%; padding: 1em; background-color: var(--nord0); margin: auto; display: block; text-align: center;">
@@ -1259,6 +1280,7 @@ $x_1$ and $x_2$ are time-constant and $x_3$ and $x_4$ are time-varying,
 and $x_1$ and $x_3$ have missing values while $x_2$ and $x_4$ are completely
 observed.
 
+- - -
 --
 
 \begin{align}
@@ -1274,8 +1296,8 @@ observed.
 
 I can then write this joint distribution of the 4 variables as the product
 of 
-* the distribution of $x_4$ conditional on $x_1$, $x_2$ and $x_3$,
-* the distribution of $x_3$ conditional on $x_1$ and $x_2$, and
+* the distribution of $x_3$ conditional on $x_1$, $x_2$ and $x_4$,
+* the distribution of $x_4$ conditional on $x_1$ and $x_2$, and
 * the distribution of $x_1$ conditional on $x_2$.
 
 Because they are univariate, I can easily find appropriate ways to specify
@@ -1351,6 +1373,7 @@ And this joint distribution is specified as the product of the analysis model,
 the joint distribution of the covariates, which we specified in a sequential 
 way on the previous slide, and prior distributions.
 
+- - -
 --
 
 <br>
@@ -1869,6 +1892,7 @@ random intercept to the model.
 
 For the rest, the model specification remains the same.
 
+- - -
 --
 
 
@@ -1932,6 +1956,8 @@ product of the analysis model, a specification for the covariates and the
 priors, 
 we can just exchange the analysis model with some more complex model.
 
+
+- - -
 --
 
 <br>
@@ -1996,6 +2022,7 @@ We have tree biomarkers, the log transformed bilirubin and AST, and the platelet
 I included all three of them as covariates in the survival model, and, to model
 the association between the three biomarkers I also added them into each other's linear predictor in a sequential way.
 
+- - -
 --
 
 ```{r, eval = FALSE, echo = TRUE}
@@ -2028,7 +2055,7 @@ random effects to be independent.
 
 .flex-grid[
 .col[
-**Univariate Models:**
+**Generalized Linear Models**
 
 * `lm_imp()`
 * `glm_imp()`
