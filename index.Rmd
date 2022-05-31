@@ -2419,10 +2419,9 @@ uses direct specification<br>
 .col[
 **Fully Bayesian approach:**<br>
 - specification of the joint distribution
-- derives full-conditionals from the joint
-
-&#8680; Assures compatibility & congeniality<br>
-&#8680; Combined analysis & imputation
+- derives full-conditionals from the joint<br>
+  &#8680; Assures compatibility & congeniality
+- extendible to complex/custom models & MNAR
 ]
 ]
 
