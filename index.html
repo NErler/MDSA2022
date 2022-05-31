@@ -212,19 +212,20 @@ Default: **Multiple Imputation**
 
 ???
 
-The most common way to handle missing values in covariates is multiple 
-imputation. 
+The **most common** way to handle missing values in covariates is **multiple 
+imputation**.
 
 This refers to the general principle that we impute the missing values multiple
 times, fill them into the original, incomplete data to create multiple completed
 datasets that we can then analyse using standard methods.
 
+&lt;div style = "color: grey;"&gt;
 In the end, we need to pool the results from the separate analyses to create one
 overall result that takes into account both the uncertainty that we have about
 the parameter estimates from each of the analyses, measured by the standard
 errors, and the additional uncertainty due to the missing values, which is
 measured by the variation between the results from the different imputations.
-
+&lt;/div&gt;
 
 ---
 
@@ -238,18 +239,21 @@ values&lt;/span&gt; given the &lt;strong&gt;observed values&lt;/strong&gt;.
 .footnote[
 assuming &lt;span style="font-weight: bold;"&gt;ignorable missingness&lt;/span&gt; in a covariate `\(x\)`
 
-[&lt;i class = "fas fa-book"&gt;&lt;/i&gt; Rubin (2004)](https://doi.org/10.1198/000313004X6355)
-]
-
+[&lt;i class = "fas fa-book"&gt;&lt;/i&gt; Rubin (2004)](https://doi.org/10.1198/000313004X6355)]
 
 ???
 
-The critical, or most interesting part of this is the imputation step. 
+The critical, or **most interesting** part of this is the **imputation step**. 
 
-The whole concept of multiple imputation was developed by Donald Rubin in the
-1970s and he realized that imputed values should be sampled from the predictive
-distribution of the missing values given the observed values.
+When Donald Rubin developed multiple imputation in the 1970s, he realized that **imputed values have to be sampled from the predictive
+distribution of the missing values given the observed values**.
 
+This is an inherently **Bayesian idea**. The way I see it, multiple imputation is
+**based on Bayesian reasoning** but instead of working with the full posterior
+distribution it only uses a **hand full of samples** for practical purposes.
+
+
+- - -
 --
 
 &lt;br&gt;
@@ -262,9 +266,10 @@ p(\color{var(--nord15)}{\mathbf x} \mid \text{everything else}) = p(\color{var(-
 
 ???
 
-That means we need to sample the imputed values for an incomplete covariate `\(x\)`
-from a distribution for `\(x\)` conditional on everything else, where "everything
-else" includes the outcome/response, other covariates, and parameters.
+That means we need to **sample** the **imputed values for an incomplete
+covariate `\(x\)`** from a **distribution for `\(x\)` conditional on everything else**,
+where "everything else" includes the outcome/response, other covariates, and
+parameters.
 
 
 ---
@@ -342,9 +347,9 @@ else" includes the outcome/response, other covariates, and parameters.
 
 ???
 
-Let's have a look at this in a very simple setting where we have a response `\(y\)`,
-an incomplete covariate `\(x_1\)` and two completely observed covariates `\(x_2\)` and
-`\(x_3\)`.
+Let's have a look at this in a **very simple setting** where we have a response
+`\(y\)`, an incomplete covariate `\(x_1\)` and two completely observed covariates `\(x_2\)`
+and `\(x_3\)`.
 
 - - - - - 
 
@@ -360,11 +365,11 @@ to get estimates `\(\boldsymbol{\hat\beta}\)` (and `\(\hat\sigma\)`)
 
 ???
 
-We can think of sampling from the predictive distribution of `\(x_1\)` as
-fitting a model for `\(x_1\)` that has the other three variables in the linear predictor, to the cases where `\(x_1\)` is observed.
+We can **think of sampling from the predictive distribution** of `\(x_1\)` as
+**fitting a model for `\(x_1\)`** that has the other three variables in the linear predictor, to the cases **where `\(x_1\)` is observed**.
 
-From this model, we can get estimates for the regression coefficients `\(\beta\)`
-and the standard deviation of the residuals `\(\sigma\)`.
+From this model, we can **get estimates** for the regression coefficients
+`\(\beta\)` and the standard deviation of the residuals `\(\sigma\)`.
 
 - - -
 
@@ -378,9 +383,12 @@ Sample
 
 ???
 
-And using these parameter estimates we can then calculate the fitted or
-predicted value of `\(x_1\)` for those cases where `\(x_1\)` is missing.
+And using these parameter estimates we can then **calculate the expected value** of `\(x_1\)` for those cases where `\(x_1\)` is missing.
 
+The **distributional assumption** that we made when we **chose the type of
+model** to use,  together with the **expected value** and estimate of the
+**standard deviation of the error terms** specifies this predictive distribution
+that we need to sample imputations for the missing values in `\(x_1\)` from.
 
 
 
@@ -452,7 +460,7 @@ predicted value of `\(x_1\)` for those cases where `\(x_1\)` is missing.
 .col[
 
 &lt;div style = "width: 700px;"&gt;
-&amp;#8680; \(p(\color{var(--nord15)}{\mathbf x_{mis}} \mid \text{everything else})\)
+&amp;#8680; \(p(\color{var(--nord15)}{\mathbf X_{mis}} \mid \text{everything else})\)
 is &lt;strong&gt;multivariate&lt;/strong&gt;.
 &lt;/div&gt;
 
@@ -464,8 +472,11 @@ is &lt;strong&gt;multivariate&lt;/strong&gt;.
 ???
 
 In practice, we usually do not have missing values in just a single variable,
-but in **multiple variables**, and the **predictive distribution** of the
-missing values conditional on everything else **is then multivariate**.
+but in **multiple variables**, and the **predictive distribution** is then **multivariate**.
+
+When the incomplete **variables are of mixed type**, meaning continuous and
+categorical, this multivariate distribution does **not have a closed form** and
+things get a bit more complicated.
 
 - - -
 
@@ -499,20 +510,23 @@ missing values conditional on everything else **is then multivariate**.
 
 
 ???
-And the most common approach to imputation in this setting is MICE, short for
-**multivariate imputation by chained equations**, an approach that is also
-called **fully conditional specification**.
 
-The principle is a direct extension to what we've seen on the previous slide:
+The most common approach to solve this issue is MICE, short for
+**multivariate imputation by chained equations**, also called 
+**fully conditional specification**.
+
+The principle is a **direct extension** to what we've seen on the previous slide:
 We impute missing values using models that have all other data in their linear
 predictor.
 
-Because in these imputation models condition on unobserved values, we use an
-iterative algorithm that starts by randomly drawing initial values from the
-observed part of the data, and then cycles through the incomplete variables and
-impute one at a time.
+Because in these imputation **models condition on unobserved values**, we have
+to use an **iterative algorithm** that starts by **randomly drawing initial
+values** from the observed part of the data, and then **cycles through the
+incomplete variables** and imputes one at a time.
 
-This algorithm is based on the idea of the Gibbs sampler.
+This algorithm is based on the **idea of the Gibbs sampler** which creates a
+**sample from a multivariate distribution** by iteratively sampling from a **set
+of univariate full-conditional distributions**.
 
 ---
 
@@ -596,19 +610,20 @@ This algorithm is based on the idea of the Gibbs sampler.
 
 ???
 
-How does this look like when we have survival data like in our motivating 
+How does this look like when we have **survival data** like in our motivating 
 example.
 
-When we use the Cox model, we model the hazard function, and here I consider
-only the simple setting in which we do not have time-varying covariates.
+When we use the **Cox model**, we model the **hazard function**, and here I
+consider only the **simple setting** in which we do not have time-varying
+covariates.
 
-`\(\mathbf X\)` refers to the design matrix which contains completely observed and
-incomplete covariates.
+`\(\mathbf X\)` refers to the **design matrix** which contains completely observed
+and incomplete covariates.
 
 
-But the data that we use to fit such a model, does not contain the hazard as
-a response variable. Instead, we have the time of the event or censoring, 
-and the event indicator `\(\delta\)`.
+But the **data** that we use to fit such a model, **does not contain the hazard**
+as a response variable. Instead, we have the **time of the event** or censoring, 
+and the **event indicator `\(\delta\)`**.
 
 ---
 
@@ -631,19 +646,17 @@ and `\(\mathbf T\)` and `\(\boldsymbol\delta\)`.
 
 ???
 
-When we now use the MICE algorithm on such survival data, usually the following happens:
+When we now use the **MICE algorithm** on survival data, the following happens:
 
 We specify (maybe without knowing it, because the software does it for us)
-imputation models for the incomplete covariates that look like this:
+**imputation models** for the incomplete covariates that look like this:
+they **contain the event time and event indicator and all other covariates in its linear predictor.
 
-The model for `\(x_1\)`, for example, would contain the event Time and event indicator
-and all other covariates in its linear predictor.
+At first glance, this **seems OK**, because we have specified a full conditional
+distribution.
 
-At first glance, this seems OK, because we have included "everything else", 
-meaning the outcome and the other covariates.
-
-But this model assumes that there is a linear association between `\(x_1\)` and the
-event time and event indicator.
+But this model **assumes** that there is a **linear association** between the
+incomplete covariate `\(x_1\)` and the event time and event indicator.
 
 - - -
 
@@ -660,14 +673,17 @@ This is **inconsistent** with the log-likelihood of the **proportional hazards m
 
 ???
 
-But the log-likelihood of the proportional hazards model makes a different
-assumption.
+But the **log-likelihood of the proportional hazards model** makes a **different
+assumption**.
 
-Our analysis model implies that there is a non-linear association between
-covariates and the event time and indicator.
+Our **analysis model implies** that there is a **non-linear association**
+between covariates and the event time and indicator.
 
-The implication of this becomes more clear when we look at a simpler example
-that can be visualized more easily.
+So we have specified a full-conditional distribution as our imputation model, 
+but **not the correct full-conditional distribution**.
+
+The **implication** of this becomes more clear when we look at a **simpler
+example** that can be visualized more easily.
 
 ---
 
@@ -685,7 +701,6 @@ between `\(\color{var(--nord15)}{\mathbf x_1}\)` and `\(\mathbf y\)`:
 \theta_0 + \bbox[#3B4252, 2pt]{\theta_1 \mathbf y} +
 \theta_2 \mathbf x_2 + \theta_3 \mathbf x_3 + \ldots$$`
 
-&lt;!-- &lt;img src="figures/linplot.png", width = "450", height = "300", style="position:absolute; bottom:45px;"&gt; --&gt;
 
 &lt;img src="index_files/figure-html/unnamed-chunk-2-1.png" width="100%" /&gt;
 
@@ -693,12 +708,13 @@ between `\(\color{var(--nord15)}{\mathbf x_1}\)` and `\(\mathbf y\)`:
 
 ???
 
-We just simplify the setting back to the situation where we have a standard
-univariate response variable `\(y\)` and we want to impute the incomplete covariate
-`\(x_1\)` and we assume that both are continuous and conditionally normally distributed.
-Then we could the linear regression model for `\(x_1\)` with `\(y\)` and other covariates
-as imputation model and this model of course assumes that there is a linear
-association between `\(x_1\)` and `\(y\)`.
+Here I go back to the very simple setting with a **response `\(y\)`** and missing
+values in the **covariate `\(x_1\)`**, and assume both are continuous and can be
+modelled using linear regression.
+
+So the **imputation model for `\(x_1\)`** is a linear regression that has `\(y\)` in its
+linear predictor, and this **implies a linear association** between `\(x_1\)` and
+`\(y\)`.
 
 - - -
 --
@@ -712,18 +728,11 @@ But what if
 \beta_3 \mathbf x_2 + \ldots$$`
 
 &lt;img src="index_files/figure-html/unnamed-chunk-3-1.png" width="100%" /&gt;
-
-&lt;!-- &lt;img src="figures/qdrplot.png", width = "450", height = "300", style="position:absolute; bottom:45px;"&gt; --&gt;
-
 ]
 
 ???
 
-But that is of course not always the case.
-
-When analysing the data, so when we are thinking about the model for `\(y\)` in which
-`\(x_1\)` is a covariate, we might assume that there is a non-linear association, 
-for example, that `\(x_1\)` has a quadratic effect on `\(y\)`.
+Assume that we do in fact have a non-linear association and that our analysis model includes also a **quadratic term of `\(x_1\)`.**
 
 ---
 
@@ -784,6 +793,11 @@ And the same that we have visualized here for a quadratic effect will also
 happen when we use imputation with the MICE algorithm naively with a
 time-to-event outcome.
 
+
+To avoid this bias we would need **imputation models that also assume a
+non-linear association**. But it is not going to be straightforward to get the
+correct shape of this association because usually we cannot just get the
+**inverse of the functional form** used in the analysis model.
 
 ---
 
@@ -1027,7 +1041,7 @@ And here Bayes comes to the rescue.
 
 `\begin{align}
 p(\color{var(--nord15)}{\mathbf X_{mis}} \mid \mathbf y, \ldots) &amp;= 
-\frac{p(\mathbf y \mid \color{var(--nord15)}{\mathbf X}, \ldots)\;
+\frac{p(\mathbf y \mid \color{var(--nord15)}{\mathbf X_{mis}}, \ldots)\;
 p(\color{var(--nord15)}{\mathbf X_{mis}},\ldots)}{p\left(\mathbf y, \ldots\right)}\\
 &amp;\propto p(\mathbf y \mid \color{var(--nord15)}{\mathbf X_{mis}}, \ldots)\;
 p(\color{var(--nord15)}{\mathbf X_{mis}},\ldots)
@@ -1050,7 +1064,7 @@ The product of these two terms describes the full joint distribution of
 everything, all the data, response, covariates, observed or missing, and
 parameters.
 
-**We've now moved to the Bayesian framework**
+
 
 ---
 
@@ -1068,6 +1082,8 @@ And in general, we can write this joint distribution as the product of
 * the analysis model, which is the distribution of the response given the covariates and parameters,
 * a model for the covariates conditional on parameters,
 * and the prior distribution for the parameters.
+
+**We've now moved to the Bayesian framework**
 
 The analysis model and the priors are the same as when we perform a Bayesian
 analysis in a complete data setting.
@@ -2366,7 +2382,7 @@ window.onclick = function(event) {
 
     </textarea>
 <style data-target="print-only">@media screen {.remark-slide-container{display:block;}.remark-slide-scaler{box-shadow:none;}}</style>
-<script src="https://remarkjs.com/downloads/remark-latest.min.js"></script>
+<script src="libs/remark-latest.min.js"></script>
 <script>var slideshow = remark.create({
 "highlightStyle": "nord",
 "slideNumberFormat": "%current%",
